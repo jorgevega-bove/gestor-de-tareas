@@ -862,6 +862,14 @@ function openAccountMenu(anchor) {
 function openSettings() {
   openDialog('Configuración', `
     <div class="set-sec">
+      <div class="set-txt"><b>Descargar respaldo</b><span>Guarda en un archivo todos los proyectos, tareas, comentarios y archivos adjuntos.</span></div>
+      <button class="btn-cancel" id="export-data">Descargar</button>
+    </div>
+    <div class="set-sec">
+      <div class="set-txt"><b>Restaurar respaldo</b><span>Reemplaza todos los datos actuales por los de un archivo de respaldo.</span></div>
+      <label class="btn-cancel">Elegir archivo<input type="file" id="import-data" accept=".json,application/json" hidden></label>
+    </div>
+    <div class="set-sec">
       <div class="set-txt"><b>Datos de ejemplo</b><span>Borra todo y vuelve a cargar los proyectos y tareas de ejemplo.</span></div>
       <button class="btn-cancel danger-text" id="reset-data">Restablecer datos de ejemplo</button>
     </div>`);
@@ -891,18 +899,53 @@ function setLoggedOut(v) {
   $('#logged-out').hidden = !v;
 }
 
-async function resetData() {
-  await Api.resetAll(SEED);
+async function exportData() {
+  const data = await Api.exportAll();
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `bove-respaldo-${nowISO().slice(0, 10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast(`Respaldo descargado (${fmtSize(blob.size)})`);
+}
+
+async function importData(file) {
+  let data;
+  try { data = JSON.parse(await file.text()); } catch { toast('El archivo no se pudo leer'); return; }
+  if (!data || data.app !== 'gestor-de-tareas-bove') { toast('El archivo no es un respaldo del gestor de tareas'); return; }
+  const when = data.exported_at ? fmt(data.exported_at) : 'fecha desconocida';
+  showConfirm({
+    title: '¿Restaurar este respaldo?',
+    body: `Respaldo del <b>${esc(when)}</b> con ${data.projects.length} proyectos y ${data.tasks.length} tareas.
+      Se reemplazarán <b>todos</b> los datos actuales. Esta acción no se puede deshacer.`,
+    ok: 'Restaurar',
+    onOk: async () => {
+      try { await Api.importAll(data); } catch (err) { toast(err.message); return; }
+      await reloadAll();
+      toast('Respaldo restaurado');
+    },
+  });
+}
+
+// Vuelve a leer todo desde la base local y redibuja la app
+async function reloadAll() {
   USERS = await Api.listPeople();
   state.tasks = await Api.listTasks();
   state.projects = await Api.listProjects();
-  prefs.project = state.projects[0].id;
+  if (!isAllView() && !projectById(prefs.project)) prefs.project = state.projects[0].id;
   prefs.filters = {};
   savePrefs();
   closeDialog();
   closeTask();
   renderAccount();
   renderTable();
+}
+
+async function resetData() {
+  await Api.resetAll(SEED);
+  prefs.project = 1;
+  await reloadAll();
   toast('Datos de ejemplo restablecidos');
 }
 
@@ -1217,6 +1260,7 @@ document.addEventListener('click', async (e) => {
   if (target.closest('#account')) { openAccountMenu(target.closest('#account')); return; }
   if (target.closest('#login-again')) { setLoggedOut(false); return; }
   if (target.closest('[data-dialog-close]') || target.id === 'dialog') { closeDialog(); return; }
+  if (target.closest('#export-data')) { await exportData(); return; }
   if (target.closest('#reset-data')) {
     showConfirm({
       title: '¿Restablecer los datos de ejemplo?',
@@ -1267,6 +1311,9 @@ document.addEventListener('change', async (e) => {
     const date = byId(state.openId).due_at.split('T')[0];
     state.addingTime = false;
     await updateTask({ due_at: el.value ? `${date}T${el.value}` : date });
+  } else if (el.id === 'import-data') {
+    if (el.files[0]) await importData(el.files[0]);
+    el.value = '';
   } else if (el.id === 'up-file') {
     await addFiles([...el.files]);
   }

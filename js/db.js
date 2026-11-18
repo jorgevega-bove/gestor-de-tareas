@@ -90,7 +90,50 @@ const nowISO = () => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 };
 
+// Conversión de archivos adjuntos para el respaldo (JSON no guarda archivos binarios)
+const blobToDataURL = (blob) => new Promise((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => resolve(r.result);
+  r.onerror = () => reject(r.error);
+  r.readAsDataURL(blob);
+});
+function dataURLToBlob(url) {
+  const [head, b64] = url.split(',');
+  const type = (head.match(/data:([^;]*)/) || [])[1] || 'application/octet-stream';
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type });
+}
+const BACKUP_APP = 'gestor-de-tareas-bove';
+const DATA_STORES = ['people', 'projects', 'tasks', 'comments', 'meta'];
+
 const Api = {
+  // ---------- Respaldo ----------
+  async exportAll() {
+    const out = { app: BACKUP_APP, version: 1, exported_at: nowISO() };
+    for (const st of DATA_STORES) out[st] = await LocalDB.all(st);
+    const atts = await LocalDB.all('attachments');
+    out.attachments = [];
+    for (const a of atts) {
+      const { blob, ...rest } = a;
+      out.attachments.push({ ...rest, data: await blobToDataURL(blob) });
+    }
+    return out;
+  },
+
+  async importAll(data) {
+    if (!data || data.app !== BACKUP_APP || !Array.isArray(data.tasks) || !Array.isArray(data.projects)) {
+      throw new Error('El archivo no es un respaldo válido del gestor de tareas.');
+    }
+    for (const st of [...DATA_STORES, 'attachments']) await LocalDB.clear(st);
+    for (const st of DATA_STORES) for (const row of data[st] || []) await LocalDB.put(st, row);
+    for (const a of data.attachments || []) {
+      const { data: url, ...rest } = a;
+      await LocalDB.put('attachments', { ...rest, blob: dataURLToBlob(url) });
+    }
+  },
+
   async ensureSeed(seed) {
     if (!(await LocalDB.all('people')).length) {
       for (const u of seed.people) await LocalDB.put('people', u);

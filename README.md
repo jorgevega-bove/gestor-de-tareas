@@ -7,6 +7,7 @@ App interna para registrar y seguir los pendientes de BOVE, organizados por proy
 Abre `index.html` con Chrome (doble clic). No necesita instalación ni internet.
 
 Por ahora los datos se guardan en el navegador (IndexedDB), así que cada computador tiene sus propios datos.
+Desde Cuenta › Configuración se puede descargar un respaldo y restaurarlo.
 
 ## Funciones
 
@@ -36,6 +37,8 @@ js/app.js        Lógica de la interfaz
 ```
 
 ## Pendiente
+
+- Sistema de cuentas e inicio de sesión real
 
 - Registro de nuevos usuarios
 - Migrar datos y archivos a Supabase
