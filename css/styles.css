@@ -416,3 +416,10 @@ svg.view-ico { fill: none; width: 16px; height: 16px; }
 #archived-list .proj.active { color: var(--text); }
 .side-empty { color: var(--text-3); font-size: 13px; padding: 4px 8px; }
 .side-foot { padding: 8px 0 0; border-top: 1px solid var(--border); }
+
+/* ---------- Secciones desplegables de proyectos ---------- */
+.sec-h { display: flex; align-items: center; gap: 4px; width: 100%; border: none; background: none; cursor: pointer; text-align: left; font: inherit; font-size: 12px; font-weight: 500; color: var(--text-3); border-radius: 4px; padding: 6px 6px 4px; margin-top: 8px; }
+.sec-h:hover { background: var(--hover); color: var(--text-2); }
+.sec-h .chev { width: 12px; height: 12px; transition: transform .15s ease; flex-shrink: 0; }
+.sec-h.open .chev { transform: rotate(90deg); }
+.sec-body[hidden] { display: none; }

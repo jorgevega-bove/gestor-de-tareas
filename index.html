@@ -11,12 +11,16 @@
 <aside class="sidebar">
   <div class="ws"><span class="ws-icon">B</span>BOVE</div>
   <div id="sidebar-projects">
-  <div class="side-label">Proyectos en curso</div>
-  <div id="project-list" class="project-list"></div>
-  <button class="side-item side-add" id="new-project">＋ Crear proyecto</button>
-  <input class="new-project-input" id="new-project-input" placeholder="Nombre del proyecto y Enter" hidden>
-  <div class="side-label">Proyectos archivados</div>
-  <div id="archived-list" class="project-list"></div>
+    <button class="side-label sec-h" data-section="active"><svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>Proyectos en curso</button>
+    <div class="sec-body" data-body="active">
+      <div id="project-list" class="project-list"></div>
+      <button class="side-item side-add" id="new-project">＋ Crear proyecto</button>
+      <input class="new-project-input" id="new-project-input" placeholder="Nombre del proyecto y Enter" hidden>
+    </div>
+    <button class="side-label sec-h" data-section="archived"><svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>Proyectos archivados</button>
+    <div class="sec-body" data-body="archived">
+      <div id="archived-list" class="project-list"></div>
+    </div>
   </div>
   <div class="side-spacer"></div>
   <div class="side-foot">

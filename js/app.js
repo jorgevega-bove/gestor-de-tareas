@@ -71,6 +71,8 @@ delete CURRENT_USER;
 prefs.sort = prefs.sort || { key: null, dir: null };
 prefs.view = prefs.view || 'table';
 prefs.filters = prefs.filters || {};
+// Sección abierta en la barra lateral: 'active', 'archived' o null (máximo una abierta)
+if (prefs.openSection === undefined) prefs.openSection = 'active';
 if (prefs.filters.status) prefs.filters.status = prefs.filters.status.filter((v) => v in STATUS);
 prefs.hidden = prefs.hidden || COLUMNS.filter((c) => c.hidden).map((c) => c.key);
 // Orden de columnas: se respeta el guardado y se agregan al final columnas nuevas
@@ -761,6 +763,8 @@ function renderSidebar() {
   $('#project-list').innerHTML = active.map(item).join('');
   $('#archived-list').innerHTML = archived.map(item).join('') || '<div class="side-empty">Ninguno</div>';
   const current = projectById(prefs.project);
+  document.querySelectorAll('[data-section]').forEach((h) => h.classList.toggle('open', h.dataset.section === prefs.openSection));
+  document.querySelectorAll('[data-body]').forEach((b) => { b.hidden = b.dataset.body !== prefs.openSection; });
   if (!$('#page-title').isContentEditable) $('#page-title').textContent = current ? current.name : '';
   document.title = current ? `${current.name} · BOVE` : 'BOVE';
 }
@@ -1056,6 +1060,14 @@ document.addEventListener('click', async (e) => {
 
   // Proyectos
   if (target.closest('#page-title')) { startRenameProject(); return; }
+  // Secciones desplegables (máximo una abierta a la vez)
+  const sec = target.closest('[data-section]');
+  if (sec) {
+    prefs.openSection = prefs.openSection === sec.dataset.section ? null : sec.dataset.section;
+    savePrefs();
+    renderSidebar();
+    return;
+  }
   const ar = target.closest('[data-archive]');
   if (ar) {
     const p = projectById(ar.dataset.archive);
