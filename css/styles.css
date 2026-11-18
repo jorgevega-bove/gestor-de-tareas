@@ -531,3 +531,7 @@ th .funnel svg.line-ico { width: 13px; height: 13px; stroke: var(--accent); }
 .lane { display: flex; flex-direction: column; }
 .lane .cards { flex: 1; }
 .lane .new-card { margin-top: 8px; }
+
+/* Menú de cuenta: "Salir de la cuenta" en rojo suave (el mismo rojo de la app) */
+.popover .opt.logout-opt { color: #d44c47; }
+.popover .opt.logout-opt:hover { background: #fdebec; }

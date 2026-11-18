@@ -862,11 +862,11 @@ const closeDialog = () => $('#dialog').classList.remove('open');
 function openAccountMenu(anchor) {
   openPopover(anchor, `
     <div class="title">${esc(userName(CURRENT_USER))}</div>
-    <div class="opt" data-account="settings">⚙&nbsp; Configuración</div>
-    <div class="opt" data-account="log">☰&nbsp; Bitácora</div>
-    <div class="opt" data-account="shortcuts">⌨&nbsp; Atajos de teclado</div>
+    <div class="opt" data-account="settings">Configuración</div>
+    <div class="opt" data-account="log">Bitácora</div>
+    <div class="opt" data-account="shortcuts">Atajos de teclado</div>
     <div class="pop-sep"></div>
-    <div class="opt" data-account="logout">↪&nbsp; Salir de la cuenta</div>`);
+    <div class="opt logout-opt" data-account="logout">Salir de la cuenta</div>`);
   pop().dataset.kind = 'account';
   pop().style.minWidth = '220px';
 }
