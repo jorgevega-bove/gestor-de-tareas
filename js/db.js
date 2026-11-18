@@ -37,7 +37,20 @@ const LocalDB = (() => {
             db.createObjectStore('projects', { keyPath: 'id', autoIncrement: true });
           }
         };
-        req.onsuccess = () => resolve(req.result);
+        // Otra pestaña con una versión anterior de la app tiene la base abierta y bloquea la actualización
+        req.onblocked = () => {
+          document.body.innerHTML = '<div style="padding:60px;font-family:-apple-system,sans-serif;color:#37352f;max-width:560px">' +
+            '<h2>Cierra las otras pestañas de la app</h2>' +
+            '<p>Hay otra pestaña abierta con una versión anterior del gestor de tareas. ' +
+            'Ciérrala y esta página se cargará sola.</p></div>';
+          req.onsuccess = () => location.reload();
+        };
+        req.onsuccess = () => {
+          const db = req.result;
+          // Si una versión más nueva de la app se abre en otra pestaña, esta cede la base y se recarga
+          db.onversionchange = () => { db.close(); location.reload(); };
+          resolve(db);
+        };
         req.onerror = () => reject(req.error);
       });
     }
