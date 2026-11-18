@@ -483,3 +483,21 @@ kbd { display: inline-block; min-width: 22px; text-align: center; font: 12px ui-
 .lo-card h2 { margin: 0 0 8px; }
 .lo-card p { color: var(--text-2); margin: 0 0 20px; }
 .set-sec label.btn-cancel { display: inline-block; white-space: nowrap; }
+
+/* ---------- Bitácora ---------- */
+.dialog-box.wide { max-width: 760px; }
+.log-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+.log-tab { border: 1px solid var(--border); background: #fff; border-radius: 14px; padding: 2px 12px; font: inherit; font-size: 13px; color: var(--text-2); cursor: pointer; }
+.log-tab:hover { background: var(--row-hover); }
+.log-tab.on { background: var(--text); border-color: var(--text); color: #fff; }
+.log-list { max-height: 60vh; overflow-y: auto; margin: 0 -8px; padding: 0 8px; }
+.log-day { font-size: 12px; font-weight: 600; color: var(--text-3); padding: 14px 0 6px; position: sticky; top: 0; background: #fff; }
+.log-row { display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--border); align-items: baseline; }
+.log-time { color: var(--text-3); font-size: 12px; width: 38px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.log-text { line-height: 1.7; }
+.log-text .tag { vertical-align: baseline; }
+.log-link { cursor: pointer; text-decoration: underline; text-decoration-color: rgba(55,53,47,.3); text-underline-offset: 2px; }
+.log-link:hover { color: var(--accent); text-decoration-color: var(--accent); }
+.log-arrow { color: var(--text-3); margin: 0 2px; }
+.log-quote { color: var(--text-2); }
+.log-auto { background: #fdecc8; color: #402c1b; }

@@ -7,6 +7,7 @@
  *
  * Modelo de datos (pensado para que calce con tablas de Supabase):
  *   people      { id, name, created_at }   (personas que pueden ser responsables)
+ *   activity    { id, ts, at, user, entity, entity_id, entity_name, action, field, from, to, extra }  (bitácora)
  *   projects    { id, name, position, archived, created_at }
  *   tasks       { id, project_id, title, description, status, priority, project, assignees: [ids],
  *                 created_by, created_at, due_at, depends_on: [ids] }
@@ -17,7 +18,7 @@
 
 const LocalDB = (() => {
   const NAME = 'gestor-de-tareas';
-  const VERSION = 3;
+  const VERSION = 4;
   let dbPromise;
 
   function open() {
@@ -39,6 +40,9 @@ const LocalDB = (() => {
           }
           if (e.oldVersion < 3) {
             db.createObjectStore('people', { keyPath: 'id' });
+          }
+          if (e.oldVersion < 4) {
+            db.createObjectStore('activity', { keyPath: 'id', autoIncrement: true });
           }
         };
         // Otra pestaña con una versión anterior de la app tiene la base abierta y bloquea la actualización
@@ -81,6 +85,8 @@ const LocalDB = (() => {
     del: (store, key) => run(store, 'readwrite', (s) => s.delete(key)),
     byTask: (store, taskId) => run(store, 'readonly', (s) => s.index('task_id').getAll(taskId)),
     clear: (store) => run(store, 'readwrite', (s) => s.clear()),
+    // Último registro de un almacén (el de id más alto)
+    last: (store) => run(store, 'readonly', (s) => s.openCursor(null, 'prev')).then((c) => (c ? c.value : null)),
   };
 })();
 
@@ -106,7 +112,26 @@ function dataURLToBlob(url) {
   return new Blob([bytes], { type });
 }
 const BACKUP_APP = 'gestor-de-tareas-bove';
-const DATA_STORES = ['people', 'projects', 'tasks', 'comments', 'meta'];
+const DATA_STORES = ['people', 'projects', 'tasks', 'comments', 'meta', 'activity'];
+
+/* ---------- Bitácora ---------- */
+// Campos de la tarea que se registran cuando cambian
+const TRACKED = ['title', 'status', 'priority', 'assignees', 'project_id', 'due_at', 'depends_on', 'description'];
+// Al escribir, el título y la descripción se guardan varias veces: se agrupan en un solo registro
+const COALESCE_MS = 2 * 60 * 1000;
+async function logActivity(entry, { coalesce = false } = {}) {
+  const e = { ts: Date.now(), at: nowISO(), user: Api.currentUser, ...entry };
+  if (coalesce) {
+    const last = await LocalDB.last('activity');
+    if (last && last.action === 'update' && last.entity === e.entity && last.entity_id === e.entity_id &&
+        last.field === e.field && last.user === e.user && e.ts - last.ts < COALESCE_MS) {
+      await LocalDB.put('activity', { ...last, to: e.to, entity_name: e.entity_name, ts: e.ts, at: e.at });
+      return;
+    }
+  }
+  await LocalDB.put('activity', e);
+}
+const projName = async (id) => ((await LocalDB.get('projects', id)) || {}).name || null;
 
 const Api = {
   // ---------- Respaldo ----------
@@ -128,6 +153,7 @@ const Api = {
     }
     for (const st of [...DATA_STORES, 'attachments']) await LocalDB.clear(st);
     for (const st of DATA_STORES) for (const row of data[st] || []) await LocalDB.put(st, row);
+    await logActivity({ entity: 'app', action: 'import', extra: data.exported_at || null });
     for (const a of data.attachments || []) {
       const { data: url, ...rest } = a;
       await LocalDB.put('attachments', { ...rest, blob: dataURLToBlob(url) });
@@ -149,9 +175,13 @@ const Api = {
     await LocalDB.put('meta', { key: 'seeded', value: true });
   },
 
+  currentUser: null,
+  listActivity: () => LocalDB.all('activity'),
+
   async resetAll(seed) {
-    for (const s of ['people', 'projects', 'tasks', 'comments', 'attachments', 'meta']) await LocalDB.clear(s);
+    for (const s of ['people', 'projects', 'tasks', 'comments', 'attachments', 'meta', 'activity']) await LocalDB.clear(s);
     await this.ensureSeed(seed);
+    await logActivity({ entity: 'app', action: 'reset' });
   },
 
   async listProjects() {
@@ -168,6 +198,7 @@ const Api = {
   async createProject(name) {
     const position = (await LocalDB.all('projects')).reduce((m, p) => Math.max(m, p.position ?? p.id), 0) + 1;
     const id = await LocalDB.put('projects', { name, position, created_at: nowISO() });
+    await logActivity({ entity: 'project', entity_id: id, entity_name: name, action: 'create' });
     return { id, name };
   },
 
@@ -182,27 +213,33 @@ const Api = {
     while (existing.has(id)) id = `${base}-${n++}`;
     const person = { id, name, created_at: nowISO() };
     await LocalDB.put('people', person);
+    await logActivity({ entity: 'person', entity_id: id, entity_name: name, action: 'create' });
     return person;
   },
 
   // Elimina el proyecto con todas sus tareas (y sus comentarios y archivos)
   async deleteProject(id) {
+    const name = await projName(id);
     for (const t of await LocalDB.all('tasks')) {
       if (t.project_id === id) await this.deleteTask(t.id);
     }
     await LocalDB.del('projects', id);
+    await logActivity({ entity: 'project', entity_id: id, entity_name: name, action: 'delete' });
   },
 
   async setProjectArchived(id, archived) {
     const p = await LocalDB.get('projects', id);
     p.archived = archived;
     await LocalDB.put('projects', p);
+    await logActivity({ entity: 'project', entity_id: id, entity_name: p.name, action: archived ? 'archive' : 'unarchive' });
   },
 
   async renameProject(id, name) {
     const p = await LocalDB.get('projects', id);
+    const before = p.name;
     p.name = name;
     await LocalDB.put('projects', p);
+    await logActivity({ entity: 'project', entity_id: id, entity_name: name, action: 'rename', from: before, to: name });
   },
 
   listTasks: () => LocalDB.all('tasks'),
@@ -225,13 +262,31 @@ const Api = {
     };
     await LocalDB.put('meta', { key: 'next_id', value: meta.value + 1 });
     await LocalDB.put('tasks', task);
+    await logActivity({ entity: 'task', entity_id: task.id, entity_name: task.title, action: 'create', extra: await projName(task.project_id) });
     return task;
   },
 
-  saveTask: (task) => LocalDB.put('tasks', task),
+  // Guarda la tarea y registra en la bitácora cada campo que cambió.
+  // opts.silent: no registra (migraciones). opts.auto: cambio automático (regla de dependencias).
+  async saveTask(task, opts = {}) {
+    const prev = await LocalDB.get('tasks', task.id);
+    await LocalDB.put('tasks', task);
+    if (!prev || opts.silent) return;
+    for (const f of TRACKED) {
+      const a = prev[f] ?? null, b = task[f] ?? null;
+      if (JSON.stringify(a) === JSON.stringify(b)) continue;
+      const entry = { entity: 'task', entity_id: task.id, entity_name: task.title, action: 'update', field: f, from: a, to: b };
+      if (opts.auto) entry.user = 'auto';
+      if (f === 'description') { entry.from = null; entry.to = null; }
+      if (f === 'project_id') entry.extra = { from: await projName(a), to: await projName(b) };
+      await logActivity(entry, { coalesce: f === 'title' || f === 'description' });
+    }
+  },
 
   async deleteTask(id) {
+    const prev = await LocalDB.get('tasks', id);
     await LocalDB.del('tasks', id);
+    if (prev) await logActivity({ entity: 'task', entity_id: id, entity_name: prev.title, action: 'delete', extra: await projName(prev.project_id) });
     for (const c of await LocalDB.byTask('comments', id)) await LocalDB.del('comments', c.id);
     for (const a of await LocalDB.byTask('attachments', id)) await LocalDB.del('attachments', a.id);
     for (const t of await LocalDB.all('tasks')) {
@@ -243,12 +298,15 @@ const Api = {
   },
 
   listComments: (taskId) => LocalDB.byTask('comments', taskId),
-  addComment: (taskId, author, body) =>
-    LocalDB.put('comments', { task_id: taskId, author, body, created_at: nowISO() }),
+  async addComment(taskId, author, body) {
+    await LocalDB.put('comments', { task_id: taskId, author, body, created_at: nowISO() });
+    const t = await LocalDB.get('tasks', taskId);
+    await logActivity({ entity: 'task', entity_id: taskId, entity_name: t ? t.title : '', action: 'comment', extra: body.slice(0, 120) });
+  },
 
   listAttachments: (taskId) => LocalDB.byTask('attachments', taskId),
-  addAttachment: (taskId, file, kind, user) =>
-    LocalDB.put('attachments', {
+  async addAttachment(taskId, file, kind, user) {
+    await LocalDB.put('attachments', {
       task_id: taskId,
       kind,
       name: file.name,
@@ -257,6 +315,16 @@ const Api = {
       blob: file,
       uploaded_by: user,
       created_at: nowISO(),
-    }),
-  deleteAttachment: (id) => LocalDB.del('attachments', id),
+    });
+    const t = await LocalDB.get('tasks', taskId);
+    await logActivity({ entity: 'task', entity_id: taskId, entity_name: t ? t.title : '', action: 'attach', extra: file.name });
+  },
+  async deleteAttachment(id) {
+    const a = await LocalDB.get('attachments', id);
+    await LocalDB.del('attachments', id);
+    if (a) {
+      const t = await LocalDB.get('tasks', a.task_id);
+      await logActivity({ entity: 'task', entity_id: a.task_id, entity_name: t ? t.title : '', action: 'detach', extra: a.name });
+    }
+  },
 };

@@ -195,7 +195,7 @@ async function releaseIfFree(t, hadDeps = false) {
   if (!t.depends_on.length && !hadDeps) return; // espera algo externo: no se libera sola
   if (blockedBy(t).length) return;
   t.status = 'todo';
-  await Api.saveTask(t);
+  await Api.saveTask(t, { auto: true });
   toast(`La tarea ${t.id} ya no espera otras tareas → ${STATUS.todo.label}`);
 }
 async function onTaskCompleted(t) {
@@ -840,6 +840,8 @@ async function deleteProject(id) {
 
 /* ---------- Diálogo genérico (Configuración, Atajos) ---------- */
 function openDialog(title, html) {
+  $('#dialog-body').classList.remove('wide');
+  $('#dialog-body').onclick = null;
   $('#dialog-body').innerHTML = `
     <div class="dlg-head"><h3>${title}</h3><button class="icon-btn" data-dialog-close title="Cerrar (Esc)">✕</button></div>
     <div class="dlg-content">${html}</div>`;
@@ -852,6 +854,7 @@ function openAccountMenu(anchor) {
   openPopover(anchor, `
     <div class="title">${esc(userName(CURRENT_USER))}</div>
     <div class="opt" data-account="settings">⚙&nbsp; Configuración</div>
+    <div class="opt" data-account="log">☰&nbsp; Bitácora</div>
     <div class="opt" data-account="shortcuts">⌨&nbsp; Atajos de teclado</div>
     <div class="pop-sep"></div>
     <div class="opt" data-account="logout">↪&nbsp; Salir de la cuenta</div>`);
@@ -890,6 +893,94 @@ function openShortcuts() {
     ['Doble clic', 'En el borde de una columna: volver a su ancho original'],
   ];
   openDialog('Atajos de teclado', `<table class="kbd-table">${rows.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>`);
+}
+
+/* ---------- Bitácora ---------- */
+const FIELD_LABEL = { title: 'el título', status: 'el estado', priority: 'la prioridad', assignees: 'los responsables',
+  project_id: 'el proyecto', due_at: 'la fecha límite', depends_on: 'las dependencias', description: 'la descripción' };
+let activityFilter = 'all';
+
+function fmtValue(field, v, entry) {
+  const none = '<span class="empty">Sin definir</span>';
+  switch (field) {
+    case 'status': return v && STATUS[v] ? pill(STATUS, v) : none;
+    case 'priority': return v && PRIORITY[v] ? pill(PRIORITY, v) : none;
+    case 'assignees': return (v || []).length ? v.map((id) => `<span class="tag c-gray">${esc(userName(id) || id)}</span>`).join(' ') : none;
+    case 'due_at': return v ? esc(fmtDue(v)) : none;
+    case 'depends_on': return (v || []).length ? v.map((id) => `<span class="tag c-gray">${id}</span>`).join(' ') : none;
+    case 'project_id': return `<span class="tag c-gray">${esc((entry.extra || {})[v === entry.from ? 'from' : 'to'] || 'proyecto eliminado')}</span>`;
+    case 'title': return `«${esc(v || 'Sin título')}»`;
+    default: return esc(v ?? '');
+  }
+}
+
+function activityText(e) {
+  // El enlace muestra el título actual de la tarea (si aún existe)
+  const name = (byId(e.entity_id) && e.entity === 'task' ? byId(e.entity_id).title : e.entity_name) || 'Sin título';
+  const task = `<a class="log-link" data-log-task="${e.entity_id}">«${esc(name)}»</a>`;
+  const proj = `<b>«${esc(e.entity_name || '')}»</b>`;
+  if (e.entity === 'task') {
+    switch (e.action) {
+      case 'create': return `creó la tarea ${task}${e.extra ? ` en <b>${esc(e.extra)}</b>` : ''}`;
+      case 'delete': return `eliminó la tarea <b>«${esc(e.entity_name || 'Sin título')}»</b>${e.extra ? ` de <b>${esc(e.extra)}</b>` : ''}`;
+      case 'comment': return `comentó en ${task}: <span class="log-quote">“${esc(e.extra)}”</span>`;
+      case 'attach': return `adjuntó <b>${esc(e.extra)}</b> en ${task}`;
+      case 'detach': return `eliminó el archivo <b>${esc(e.extra)}</b> de ${task}`;
+      case 'update':
+        if (e.field === 'description') return `editó la descripción de ${task}`;
+        if (e.field === 'title') return e.from ? `cambió el título ${fmtValue('title', e.from)} a ${fmtValue('title', e.to)}` : `le puso el título ${fmtValue('title', e.to)} a la tarea ${e.entity_id}`;
+        return `cambió ${FIELD_LABEL[e.field] || e.field} de ${task}: ${fmtValue(e.field, e.from, e)} <span class="log-arrow">→</span> ${fmtValue(e.field, e.to, e)}`;
+    }
+  }
+  if (e.entity === 'project') {
+    switch (e.action) {
+      case 'create': return `creó el proyecto ${proj}`;
+      case 'rename': return `renombró el proyecto <b>«${esc(e.from)}»</b> a ${proj}`;
+      case 'archive': return `archivó el proyecto ${proj}`;
+      case 'unarchive': return `desarchivó el proyecto ${proj}`;
+      case 'delete': return `eliminó el proyecto ${proj} y sus tareas`;
+    }
+  }
+  if (e.entity === 'person') return `agregó a <b>${esc(e.entity_name)}</b> como persona`;
+  if (e.entity === 'app' && e.action === 'reset') return 'restableció los datos de ejemplo';
+  if (e.entity === 'app' && e.action === 'import') return `restauró un respaldo${e.extra ? ` del ${esc(fmt(e.extra))}` : ''}`;
+  return esc(e.action);
+}
+
+function dayLabel(iso) {
+  const d = iso.slice(0, 10);
+  const today = nowISO().slice(0, 10);
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const yesterday = `${y.getFullYear()}-${p2(y.getMonth() + 1)}-${p2(y.getDate())}`;
+  if (d === today) return 'Hoy';
+  if (d === yesterday) return 'Ayer';
+  const [yy, mm, dd] = d.split('-');
+  return `${dd}/${mm}/${yy}`;
+}
+
+async function openActivity() {
+  const all = (await Api.listActivity()).sort((a, b) => b.ts - a.ts || b.id - a.id);
+  const render = () => {
+    const list = all.filter((e) => activityFilter === 'all' || e.entity === activityFilter).slice(0, 500);
+    let html = '', lastDay = '';
+    for (const e of list) {
+      const day = dayLabel(e.at);
+      if (day !== lastDay) { html += `<div class="log-day">${day}</div>`; lastDay = day; }
+      const who = e.user === 'auto' ? '<span class="tag c-gray log-auto">Automático</span>' : `<span class="tag c-gray">${esc(userName(e.user) || e.user || '—')}</span>`;
+      html += `<div class="log-row"><span class="log-time">${e.at.slice(11, 16)}</span><div class="log-text">${who} ${activityText(e)}</div></div>`;
+    }
+    const tabs = [['all', 'Todo'], ['task', 'Tareas'], ['project', 'Proyectos']].map(([k, l]) =>
+      `<button class="log-tab ${activityFilter === k ? 'on' : ''}" data-log-filter="${k}">${l}</button>`).join('');
+    $('#dialog-body .dlg-content').innerHTML = `<div class="log-tabs">${tabs}</div>
+      <div class="log-list">${html || '<div class="nothing">Aún no hay actividad registrada.</div>'}</div>`;
+  };
+  openDialog('Bitácora', '');
+  $('#dialog-body').classList.add('wide');
+  render();
+  $('#dialog-body').onclick = (ev) => {
+    const f = ev.target.closest('[data-log-filter]');
+    if (f) { activityFilter = f.dataset.logFilter; render(); }
+  };
 }
 
 function setLoggedOut(v) {
@@ -1117,6 +1208,7 @@ document.addEventListener('click', async (e) => {
     closePopover();
     if (am.dataset.account === 'settings') openSettings();
     if (am.dataset.account === 'shortcuts') openShortcuts();
+    if (am.dataset.account === 'log') openActivity();
     if (am.dataset.account === 'logout') setLoggedOut(true);
     return;
   }
@@ -1260,6 +1352,14 @@ document.addEventListener('click', async (e) => {
   if (target.closest('#account')) { openAccountMenu(target.closest('#account')); return; }
   if (target.closest('#login-again')) { setLoggedOut(false); return; }
   if (target.closest('[data-dialog-close]') || target.id === 'dialog') { closeDialog(); return; }
+  const lt = target.closest('[data-log-task]');
+  if (lt) {
+    const id = Number(lt.dataset.logTask);
+    if (!byId(id)) { toast('Esa tarea ya no existe'); return; }
+    closeDialog();
+    await openTask(id);
+    return;
+  }
   if (target.closest('#export-data')) { await exportData(); return; }
   if (target.closest('#reset-data')) {
     showConfirm({
@@ -1562,6 +1662,7 @@ board.addEventListener('drop', async (e) => {
 /* ---------- Inicio ---------- */
 (async () => {
   try {
+    Api.currentUser = CURRENT_USER;
     await Api.ensureSeed(SEED);
     USERS = await Api.listPeople();
     state.projects = await Api.listProjects();
@@ -1574,19 +1675,19 @@ board.addEventListener('drop', async (e) => {
         const proj = state.projects.find((p) => p.name === name) || state.projects.find((p) => p.name === 'Bove') || state.projects[0];
         t.project_id = proj.id;
         delete t.project;
-        await Api.saveTask(t);
+        await Api.saveTask(t, { silent: true });
       }
     }
     // Migración: los tres estados de dependencia pasan a ser un solo estado "En espera"
     for (const t of state.tasks) {
-      if (['dep_int', 'dep_ext', 'dep_mix'].includes(t.status)) { t.status = 'wait'; await Api.saveTask(t); }
+      if (['dep_int', 'dep_ext', 'dep_mix'].includes(t.status)) { t.status = 'wait'; await Api.saveTask(t, { silent: true }); }
     }
     // Migración: antes había un solo responsable (assignee); ahora pueden ser varios (assignees)
     for (const t of state.tasks) {
       if (!Array.isArray(t.assignees)) {
         t.assignees = t.assignee ? [t.assignee] : [];
         delete t.assignee;
-        await Api.saveTask(t);
+        await Api.saveTask(t, { silent: true });
       }
     }
   } catch (err) {
