@@ -884,6 +884,8 @@ function openShortcuts() {
   const mod = IS_MAC ? '⌘' : 'Ctrl';
   const rows = [
     [k(mod, 'F'), 'Buscar tareas'],
+    [k(mod, 'Z'), 'Deshacer el último cambio'],
+    [IS_MAC ? `${k('⌘', 'Y')} o ${k('⌘', '⇧', 'Z')}` : k('Ctrl', 'Y'), 'Rehacer'],
     [k('Esc'), 'Cerrar el panel, un menú o la búsqueda'],
     [k('Enter'), 'Guardar al editar una celda o el título del proyecto'],
     [k('Esc'), 'Cancelar la edición de una celda'],
@@ -943,6 +945,8 @@ function activityText(e) {
   }
   if (e.entity === 'person') return `agregó a <b>${esc(e.entity_name)}</b> como persona`;
   if (e.entity === 'app' && e.action === 'reset') return 'restableció los datos de ejemplo';
+  if (e.entity === 'app' && e.action === 'undo') return 'deshizo el último cambio';
+  if (e.entity === 'app' && e.action === 'redo') return 'rehizo un cambio';
   if (e.entity === 'app' && e.action === 'import') return `restauró un respaldo${e.extra ? ` del ${esc(fmt(e.extra))}` : ''}`;
   return esc(e.action);
 }
@@ -1534,6 +1538,41 @@ plist.addEventListener('drop', async (e) => {
   renderSidebar();
 });
 plist.addEventListener('dragend', () => { dragProj = null; clearProjMarks(); });
+
+// Deshacer y rehacer: ⌘Z / ⌘Y (o ⌘⇧Z) en Mac, Ctrl+Z / Ctrl+Y en Windows
+document.addEventListener('keydown', async (e) => {
+  const mod = IS_MAC ? e.metaKey : e.ctrlKey;
+  if (!mod || e.altKey) return;
+  const k = e.key.toLowerCase();
+  const isUndo = k === 'z' && !e.shiftKey;
+  const isRedo = k === 'y' || (k === 'z' && e.shiftKey);
+  if (!isUndo && !isRedo) return;
+  // Si se está escribiendo en un campo, se deja el deshacer normal del texto
+  const el = document.activeElement;
+  if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+  e.preventDefault();
+  const ok = isUndo ? await Api.undo() : await Api.redo();
+  if (!ok) { toast(isUndo ? 'No hay nada que deshacer' : 'No hay nada que rehacer'); return; }
+  await afterHistoryChange();
+  toast(isUndo ? 'Cambio deshecho' : 'Cambio rehecho');
+});
+
+async function afterHistoryChange() {
+  closePopover();
+  USERS = await Api.listPeople();
+  state.projects = await Api.listProjects();
+  state.tasks = await Api.listTasks();
+  if (!isAllView() && !projectById(prefs.project)) { prefs.project = state.projects[0].id; savePrefs(); }
+  if (state.openId) {
+    if (byId(state.openId)) {
+      [state.comments, state.attachments] = await Promise.all([Api.listComments(state.openId), Api.listAttachments(state.openId)]);
+      state.comments.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id);
+      renderPanel();
+    } else closeTask();
+  }
+  renderAccount();
+  renderTable();
+}
 
 // Al salir del título del proyecto, se guarda el nombre
 $('#page-title').addEventListener('blur', () => finishRenameProject(true));

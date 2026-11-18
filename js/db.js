@@ -131,6 +131,45 @@ async function logActivity(entry, { coalesce = false } = {}) {
   }
   await LocalDB.put('activity', e);
 }
+/* ---------- Deshacer / rehacer ----------
+ * Antes de cada cambio se guarda una copia de los datos. Los cambios hechos
+ * casi al mismo tiempo (p. ej. completar una tarea y que otra se libere sola)
+ * quedan agrupados en un solo paso. La bitácora no se deshace: registra el deshacer. */
+const SNAP_STORES = ['people', 'projects', 'tasks', 'comments', 'attachments'];
+const History = {
+  undo: [], redo: [], open: false, pending: null, timer: null, paused: false,
+  async snapshot() {
+    const snap = {};
+    for (const st of SNAP_STORES) snap[st] = await LocalDB.all(st);
+    return snap;
+  },
+  async before() {
+    if (this.paused) return;
+    if (!this.open) {
+      this.open = true;
+      this.pending = this.snapshot();
+      this.undo.push(await this.pending);
+      if (this.undo.length > 50) this.undo.shift();
+      this.redo = [];
+    } else {
+      await this.pending;
+    }
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => { this.open = false; }, 700);
+  },
+  async restore(snap) {
+    this.paused = true;
+    try {
+      for (const st of SNAP_STORES) {
+        await LocalDB.clear(st);
+        for (const row of snap[st]) await LocalDB.put(st, row);
+      }
+    } finally { this.paused = false; }
+  },
+  close() { this.open = false; clearTimeout(this.timer); },
+  clear() { this.undo = []; this.redo = []; this.close(); },
+};
+
 const projName = async (id) => ((await LocalDB.get('projects', id)) || {}).name || null;
 
 const Api = {
@@ -153,6 +192,7 @@ const Api = {
     }
     for (const st of [...DATA_STORES, 'attachments']) await LocalDB.clear(st);
     for (const st of DATA_STORES) for (const row of data[st] || []) await LocalDB.put(st, row);
+    History.clear();
     await logActivity({ entity: 'app', action: 'import', extra: data.exported_at || null });
     for (const a of data.attachments || []) {
       const { data: url, ...rest } = a;
@@ -176,11 +216,29 @@ const Api = {
   },
 
   currentUser: null,
+
+  async undo() {
+    History.close();
+    if (!History.undo.length) return false;
+    History.redo.push(await History.snapshot());
+    await History.restore(History.undo.pop());
+    await logActivity({ entity: 'app', action: 'undo' });
+    return true;
+  },
+  async redo() {
+    History.close();
+    if (!History.redo.length) return false;
+    History.undo.push(await History.snapshot());
+    await History.restore(History.redo.pop());
+    await logActivity({ entity: 'app', action: 'redo' });
+    return true;
+  },
   listActivity: () => LocalDB.all('activity'),
 
   async resetAll(seed) {
     for (const s of ['people', 'projects', 'tasks', 'comments', 'attachments', 'meta', 'activity']) await LocalDB.clear(s);
     await this.ensureSeed(seed);
+    History.clear();
     await logActivity({ entity: 'app', action: 'reset' });
   },
 
@@ -189,6 +247,7 @@ const Api = {
     return list.sort((a, b) => (a.position ?? a.id) - (b.position ?? b.id) || a.id - b.id);
   },
   async saveProjectOrder(ids) {
+    await History.before();
     for (const [i, id] of ids.entries()) {
       const p = await LocalDB.get('projects', id);
       p.position = i;
@@ -196,6 +255,7 @@ const Api = {
     }
   },
   async createProject(name) {
+    await History.before();
     const position = (await LocalDB.all('projects')).reduce((m, p) => Math.max(m, p.position ?? p.id), 0) + 1;
     const id = await LocalDB.put('projects', { name, position, created_at: nowISO() });
     await logActivity({ entity: 'project', entity_id: id, entity_name: name, action: 'create' });
@@ -207,6 +267,7 @@ const Api = {
     return list.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || '') || a.name.localeCompare(b.name, 'es'));
   },
   async createPerson(name) {
+    await History.before();
     const base = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'persona';
     const existing = new Set((await LocalDB.all('people')).map((u) => u.id));
     let id = base, n = 2;
@@ -219,6 +280,7 @@ const Api = {
 
   // Elimina el proyecto con todas sus tareas (y sus comentarios y archivos)
   async deleteProject(id) {
+    await History.before();
     const name = await projName(id);
     for (const t of await LocalDB.all('tasks')) {
       if (t.project_id === id) await this.deleteTask(t.id);
@@ -228,6 +290,7 @@ const Api = {
   },
 
   async setProjectArchived(id, archived) {
+    await History.before();
     const p = await LocalDB.get('projects', id);
     p.archived = archived;
     await LocalDB.put('projects', p);
@@ -235,6 +298,7 @@ const Api = {
   },
 
   async renameProject(id, name) {
+    await History.before();
     const p = await LocalDB.get('projects', id);
     const before = p.name;
     p.name = name;
@@ -245,6 +309,7 @@ const Api = {
   listTasks: () => LocalDB.all('tasks'),
 
   async createTask(fields) {
+    await History.before();
     const meta = (await LocalDB.get('meta', 'next_id')) || { key: 'next_id', value: 1 };
     const task = {
       id: meta.value,
@@ -269,6 +334,7 @@ const Api = {
   // Guarda la tarea y registra en la bitácora cada campo que cambió.
   // opts.silent: no registra (migraciones). opts.auto: cambio automático (regla de dependencias).
   async saveTask(task, opts = {}) {
+    if (!opts.silent) await History.before();
     const prev = await LocalDB.get('tasks', task.id);
     await LocalDB.put('tasks', task);
     if (!prev || opts.silent) return;
@@ -284,6 +350,7 @@ const Api = {
   },
 
   async deleteTask(id) {
+    await History.before();
     const prev = await LocalDB.get('tasks', id);
     await LocalDB.del('tasks', id);
     if (prev) await logActivity({ entity: 'task', entity_id: id, entity_name: prev.title, action: 'delete', extra: await projName(prev.project_id) });
@@ -299,6 +366,7 @@ const Api = {
 
   listComments: (taskId) => LocalDB.byTask('comments', taskId),
   async addComment(taskId, author, body) {
+    await History.before();
     await LocalDB.put('comments', { task_id: taskId, author, body, created_at: nowISO() });
     const t = await LocalDB.get('tasks', taskId);
     await logActivity({ entity: 'task', entity_id: taskId, entity_name: t ? t.title : '', action: 'comment', extra: body.slice(0, 120) });
@@ -306,6 +374,7 @@ const Api = {
 
   listAttachments: (taskId) => LocalDB.byTask('attachments', taskId),
   async addAttachment(taskId, file, kind, user) {
+    await History.before();
     await LocalDB.put('attachments', {
       task_id: taskId,
       kind,
@@ -320,6 +389,7 @@ const Api = {
     await logActivity({ entity: 'task', entity_id: taskId, entity_name: t ? t.title : '', action: 'attach', extra: file.name });
   },
   async deleteAttachment(id) {
+    await History.before();
     const a = await LocalDB.get('attachments', id);
     await LocalDB.del('attachments', id);
     if (a) {
