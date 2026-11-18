@@ -501,3 +501,9 @@ kbd { display: inline-block; min-width: 22px; text-align: center; font: 12px ui-
 .log-arrow { color: var(--text-3); margin: 0 2px; }
 .log-quote { color: var(--text-2); }
 .log-auto { background: #fdecc8; color: #402c1b; }
+
+/* ---------- Íconos de Ordenar y Filtro ---------- */
+svg.line-ico { fill: none !important; width: 15px; height: 15px; }
+th .funnel { display: inline-flex; margin-right: 4px; }
+th .funnel svg.line-ico { width: 13px; height: 13px; stroke: var(--accent); }
+#sort-tool svg.line-ico { stroke: currentColor; }

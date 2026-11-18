@@ -36,6 +36,9 @@ const P = {
   plus: 'M7.25 2h1.5v5.25H14v1.5H8.75V14h-1.5V8.75H2v-1.5h5.25z',
   table: 'M2 2.5h12v11H2zm1.5 1.5v2.5h9V4zm0 4v4h3.5V8zm5 0v4h4V8z',
 };
+// Íconos de línea para Ordenar (dos flechas) y Filtro (embudo)
+const SORT_ICON = '<svg class="i line-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13V3M2.75 5.25 5 3l2.25 2.25M11 3v10M8.75 10.75 11 13l2.25-2.25"/></svg>';
+const FUNNEL_ICON = '<svg class="i line-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 3h11.5L9.25 8.6v4.4l-2.5-1.25V8.6z"/></svg>';
 const icon = (name) => `<svg class="i" viewBox="0 0 16 16"><path d="${P[name]}"/></svg>`;
 
 /* ---------- Columnas ---------- */
@@ -313,7 +316,7 @@ function renderTableView() {
   $('#task-table').style.width = `${34 + cols.reduce((n, c) => n + prefs.widths[c.key], 0)}px`;
   $('#thead').innerHTML = `<tr><th class="gutter"></th>${cols.map((c) => `
     <th data-head="${c.key}" data-col="${c.key}" draggable="true" class="${c.key === key ? 'sorted' : ''} ${(prefs.filters[c.key] || []).length ? 'filtered' : ''}" title="Clic para ordenar o filtrar · arrastra para mover">
-      <div class="h">${icon(c.icon)}${c.label}<span class="arrow">${(prefs.filters[c.key] || []).length ? '<span class="funnel">⏷</span>' : ''}${c.key === key ? (dir === 'asc' ? '↑' : '↓') : ''}</span></div>
+      <div class="h">${icon(c.icon)}${c.label}<span class="arrow">${(prefs.filters[c.key] || []).length ? `<span class="funnel">${FUNNEL_ICON}</span>` : ''}${c.key === key ? (dir === 'asc' ? '↑' : '↓') : ''}</span></div>
       <span class="col-resize" data-resize="${c.key}" title="Arrastra para cambiar el ancho"></span>
     </th>`).join('')}</tr>`;
   const shown = sortedTasks();
@@ -326,7 +329,7 @@ function renderTableView() {
   $('#sort-tool').classList.toggle('on', !!key);
   $('#sort-tool').hidden = !key;
   $('#sort-tool').innerHTML = key
-    ? `↕ ${COLUMNS.find((c) => c.key === key).label} ${dir === 'asc' ? '↑' : '↓'}`
+    ? `${SORT_ICON} ${COLUMNS.find((c) => c.key === key).label} ${dir === 'asc' ? '↑' : '↓'}`
     : '';
 }
 
@@ -346,8 +349,8 @@ function openHeaderMenu(anchor, key) {
   const nFilter = (prefs.filters[key] || []).length;
   openPopover(anchor, `
     <div class="title">${col.label}</div>
-    <div class="opt" data-hm-sort="${key}">↕&nbsp; Ordenar ${sortLabel}</div>
-    ${FILTERS[key] ? `<div class="opt" data-hm-filter="${key}">⏷&nbsp; Filtro ${nFilter ? `<span class="hint-r">${nFilter} seleccionado${nFilter > 1 ? 's' : ''}</span>` : ''}</div>` : ''}
+    <div class="opt" data-hm-sort="${key}">${SORT_ICON}Ordenar ${sortLabel}</div>
+    ${FILTERS[key] ? `<div class="opt" data-hm-filter="${key}">${FUNNEL_ICON}Filtro ${nFilter ? `<span class="hint-r">${nFilter} seleccionado${nFilter > 1 ? 's' : ''}</span>` : ''}</div>` : ''}
     ${s.key === key ? '<div class="opt muted-opt" data-hm-unsort>✕&nbsp; Quitar orden</div>' : ''}`);
   pop().dataset.kind = 'head';
   pop().style.minWidth = '220px';
