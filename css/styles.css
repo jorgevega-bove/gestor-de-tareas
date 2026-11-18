@@ -516,3 +516,8 @@ th .funnel svg.line-ico { width: 13px; height: 13px; stroke: var(--accent); }
 /* Selector de fecha y hora: sin el ícono nativo del navegador a la derecha (ya hay ícono a la izquierda) */
 .dp-row input::-webkit-calendar-picker-indicator { display: none; }
 .dp-row .dp-ico { cursor: pointer; }
+
+/* ---------- Selector de dependencias: estados alineados a la derecha ---------- */
+.popover .dep-opt .code { width: 28px; }
+.popover .dep-opt .ttl { flex: 1; min-width: 0; }
+.popover .dep-opt .dep-status { flex-shrink: 0; width: 130px; text-align: right; }

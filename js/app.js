@@ -544,6 +544,7 @@ async function addFiles(fileList) {
 const pop = () => $('#popover');
 function openPopover(anchor, html) {
   const el = pop();
+  el.style.maxWidth = '';
   el.innerHTML = html;
   el.classList.add('open');
   const r = anchor.getBoundingClientRect();
@@ -561,8 +562,8 @@ function openDepPicker(anchor, taskId = state.openId) {
   const list = (q) => {
     const items = candidates().filter((x) => `${code(x)} ${x.title}`.toLowerCase().includes(q.toLowerCase()));
     return items.length ? items.map((x) => `
-      <div class="opt" data-add-dep="${x.id}"><span class="code">${code(x)}</span><span class="ttl">${esc(x.title || 'Sin título')}</span>
-      <span style="margin-left:auto">${pill(STATUS, x.status)}</span></div>`).join('')
+      <div class="opt dep-opt" data-add-dep="${x.id}"><span class="code">${code(x)}</span><span class="ttl">${esc(x.title || 'Sin título')}</span>
+      <span class="dep-status">${pill(STATUS, x.status)}</span></div>`).join('')
       : '<div class="title">No hay tareas disponibles</div>';
   };
   const current = t.depends_on.map(byId).filter(Boolean);
@@ -573,7 +574,8 @@ function openDepPicker(anchor, taskId = state.openId) {
     <div class="opts" id="dep-opts">${list('')}</div>`);
   pop().dataset.kind = 'deps';
   pop().dataset.task = t.id;
-  pop().style.minWidth = '380px';
+  pop().style.minWidth = '420px';
+  pop().style.maxWidth = '460px';
   const s = $('#dep-search');
   s.focus();
   s.oninput = () => { $('#dep-opts').innerHTML = list(s.value); };
