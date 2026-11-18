@@ -13,7 +13,7 @@ Por ahora los datos se guardan en el navegador (IndexedDB), así que cada comput
 - Edición directa en las celdas de la tabla; el panel de la tarea se abre solo con el botón ABRIR.
 - Columnas con ancho ajustable arrastrando el borde del encabezado (doble clic para volver al ancho por defecto).
 - Título del proyecto editable con un clic; proyectos reordenables arrastrándolos en la barra lateral.
-- Proyectos en la barra lateral (Bus Light, Bove, ERP, PUC) y opción "+ Crear proyecto".
+- Proyectos en la barra lateral (en curso y archivados), opción "+ Crear proyecto" y "Mostrar todos" para ver las tareas de todos los proyectos en curso.
 - Vista de **tabla**: clic en un encabezado para Ordenar o Filtrar (con casillas en Estado, Prioridad, Responsable, Proyecto y Creado por); con columnas que se reordenan arrastrando y se ocultan (botón "Propiedades").
 - Vista de **tablero** (Kanban) por estado; las tarjetas se arrastran entre columnas.
 - Búsqueda por título, texto, ID, proyecto o responsable (Cmd+F).

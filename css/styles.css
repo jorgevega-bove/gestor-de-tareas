@@ -423,3 +423,12 @@ svg.view-ico { fill: none; width: 16px; height: 16px; }
 .sec-h .chev { width: 12px; height: 12px; transition: transform .15s ease; flex-shrink: 0; }
 .sec-h.open .chev { transform: rotate(90deg); }
 .sec-body[hidden] { display: none; }
+
+/* ---------- Mostrar todos ---------- */
+.side-item.show-all { color: var(--text-2); }
+.side-item.show-all.active { color: var(--text); }
+h1#page-title.static { cursor: default; }
+h1#page-title.static:hover { background: none; }
+.popover .opt.locked { color: var(--text-3); cursor: default; }
+.popover .opt.locked:hover { background: none; }
+.switch.locked { opacity: .5; }

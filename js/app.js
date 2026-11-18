@@ -212,8 +212,14 @@ async function onDependencyAdded(t, depTask) {
 /* ============================================================
  *  Tabla
  * ============================================================ */
+// Vista "Mostrar todos": tareas de todos los proyectos en curso (prefs.project === 'all')
+const isAllView = () => prefs.project === 'all';
+const inView = (t) => (isAllView() ? !(projectById(t.project_id) || {}).archived : t.project_id === prefs.project);
+// En "Mostrar todos" la columna Proyecto se muestra siempre
+const isForcedColumn = (key) => isAllView() && key === 'project_id';
+
 function visibleColumns() {
-  return orderedColumns().filter((c) => c.fixed || !prefs.hidden.includes(c.key));
+  return orderedColumns().filter((c) => c.fixed || isForcedColumn(c.key) || !prefs.hidden.includes(c.key));
 }
 
 const norm = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -225,7 +231,7 @@ function matchesQuery(t) {
 }
 
 function sortedTasks() {
-  const list = state.tasks.filter((t) => t.project_id === prefs.project && matchesQuery(t) && matchesFilters(t));
+  const list = state.tasks.filter((t) => inView(t) && matchesQuery(t) && matchesFilters(t));
   const { key, dir } = prefs.sort;
   const col = COLUMNS.find((c) => c.key === key);
   if (!col) return list.sort((a, b) => a.id - b.id);
@@ -311,10 +317,10 @@ function renderTableView() {
       <span class="col-resize" data-resize="${c.key}" title="Arrastra para cambiar el ancho"></span>
     </th>`).join('')}</tr>`;
   const shown = sortedTasks();
-  $('#rows').innerHTML = shown.length ? '' : `<tr class="no-results"><td></td><td colspan="${cols.length}">${state.tasks.some((t) => t.project_id === prefs.project) ? 'Ninguna tarea coincide con la búsqueda o los filtros' : 'Este proyecto todavía no tiene tareas'}</td></tr>`;
+  $('#rows').innerHTML = shown.length ? '' : `<tr class="no-results"><td></td><td colspan="${cols.length}">${state.tasks.some(inView) ? 'Ninguna tarea coincide con la búsqueda o los filtros' : (isAllView() ? 'No hay tareas en los proyectos en curso' : 'Este proyecto todavía no tiene tareas')}</td></tr>`;
   $('#rows').innerHTML += shown.map((t) =>
     `<tr data-row="${t.id}"><td class="gutter"><button class="row-del" data-del-task="${t.id}" title="Eliminar tarea">${icon('trash')}</button></td>${cols.map((c) => cell(c, t)).join('')}</tr>`).join('');
-  const total = state.tasks.filter((t) => t.project_id === prefs.project).length;
+  const total = state.tasks.filter(inView).length;
   $('#count').textContent = isFiltering() ? `${shown.length} de ${total}` : total;
   renderFilterBar();
   $('#sort-tool').classList.toggle('on', !!key);
@@ -714,8 +720,10 @@ function editCell(td) {
 
 function openColumnsMenu(anchor) {
   const render = () => `<div class="title">Propiedades visibles en la tabla</div>` +
-    orderedColumns().filter((c) => !c.fixed).map((c) => `
-      <div class="opt" data-toggle-col="${c.key}">${icon(c.icon)}${c.label}
+    orderedColumns().filter((c) => !c.fixed).map((c) => isForcedColumn(c.key)
+      ? `<div class="opt locked" title="En «Mostrar todos» la columna Proyecto siempre se muestra">${icon(c.icon)}${c.label}
+          <span class="switch on locked"></span></div>`
+      : `<div class="opt" data-toggle-col="${c.key}">${icon(c.icon)}${c.label}
         <span class="switch ${prefs.hidden.includes(c.key) ? '' : 'on'}"></span></div>`).join('');
   openPopover(anchor, render());
   pop().dataset.kind = 'cols';
@@ -760,13 +768,16 @@ function renderSidebar() {
     </div>`;
   const active = state.projects.filter((p) => !p.archived);
   const archived = state.projects.filter((p) => p.archived);
-  $('#project-list').innerHTML = active.map(item).join('');
+  $('#project-list').innerHTML = active.map(item).join('') +
+    `<div class="side-item proj show-all ${isAllView() ? 'active' : ''}" data-show-all><span class="proj-name">Mostrar todos</span></div>`;
   $('#archived-list').innerHTML = archived.map(item).join('') || '<div class="side-empty">Ninguno</div>';
   const current = projectById(prefs.project);
   document.querySelectorAll('[data-section]').forEach((h) => h.classList.toggle('open', h.dataset.section === prefs.openSection));
   document.querySelectorAll('[data-body]').forEach((b) => { b.hidden = b.dataset.body !== prefs.openSection; });
-  if (!$('#page-title').isContentEditable) $('#page-title').textContent = current ? current.name : '';
-  document.title = current ? `${current.name} · BOVE` : 'BOVE';
+  const title = isAllView() ? 'Proyectos en curso' : current ? current.name : '';
+  if (!$('#page-title').isContentEditable) $('#page-title').textContent = title;
+  $('#page-title').classList.toggle('static', isAllView());
+  document.title = title ? `${title} · BOVE` : 'BOVE';
 }
 
 function selectProject(id) {
@@ -780,7 +791,7 @@ function selectProject(id) {
 /* ---------- Renombrar proyecto (clic en el título) ---------- */
 function startRenameProject() {
   const h = $('#page-title');
-  if (h.isContentEditable) return;
+  if (h.isContentEditable || isAllView()) return;
   h.contentEditable = 'plaintext-only';
   h.focus();
   const range = document.createRange();
@@ -835,7 +846,7 @@ document.addEventListener('click', async (e) => {
     if (field === 'status') await setStatus(t, v);
     else if (field === 'project_id') {
       t.project_id = Number(v); await Api.saveTask(t);
-      if (t.project_id !== prefs.project) toast(`Tarea movida a ${projectName(t.project_id)}`);
+      if (!inView(t)) toast(`Tarea movida a ${projectName(t.project_id)}`);
     } else { t[field] = v || null; await Api.saveTask(t); }
     refreshTask(t.id);
     return;
@@ -1038,7 +1049,7 @@ document.addEventListener('click', async (e) => {
   // Nueva tarea
   const lane = target.closest('[data-new-in]');
   if (target.closest('#new-task, #add-row') || lane) {
-    const t = await Api.createTask({ project_id: prefs.project, created_by: CURRENT_USER, assignees: [CURRENT_USER], status: lane ? lane.dataset.newIn : 'todo' });
+    const t = await Api.createTask({ project_id: isAllView() ? (state.projects.find((p) => !p.archived) || state.projects[0]).id : prefs.project, created_by: CURRENT_USER, assignees: [CURRENT_USER], status: lane ? lane.dataset.newIn : 'todo' });
     state.tasks.push(t);
     renderTable();
     await openTask(t.id);
@@ -1073,10 +1084,11 @@ document.addEventListener('click', async (e) => {
     const p = projectById(ar.dataset.archive);
     await Api.setProjectArchived(p.id, !p.archived);
     state.projects = await Api.listProjects();
-    renderSidebar();
+    renderTable(); // también actualiza la barra lateral y la vista "Mostrar todos"
     toast(projectById(p.id).archived ? `${p.name} archivado` : `${p.name} vuelve a proyectos en curso`);
     return;
   }
+  if (target.closest('[data-show-all]')) { selectProject('all'); return; }
   const pj = target.closest('[data-project]');
   if (pj) { selectProject(Number(pj.dataset.project)); return; }
   if (target.closest('#new-project')) {
@@ -1406,7 +1418,7 @@ board.addEventListener('drop', async (e) => {
     document.body.innerHTML = `<p style="padding:40px">No se pudo abrir la base de datos local: ${esc(err.message)}</p>`;
     return;
   }
-  if (!projectById(prefs.project)) { prefs.project = state.projects[0].id; savePrefs(); }
+  if (!isAllView() && !projectById(prefs.project)) { prefs.project = state.projects[0].id; savePrefs(); }
   renderSidebar();
   renderTable();
 })();
