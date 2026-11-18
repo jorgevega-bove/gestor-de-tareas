@@ -51,7 +51,7 @@ const COLUMNS = [
   { key: 'priority',   label: 'Prioridad',         icon: 'select',                sort: (t) => (t.priority ? PRIORITY[t.priority].order : null) },
   { key: 'due_at',     label: 'Fecha límite',      icon: 'cal',                   sort: (t) => (t.due_at ? dueSortKey(t.due_at) : null) },
   { key: 'code',       label: 'ID',                icon: 'id',     hidden: true,  sort: (t) => t.id },
-  { key: 'project',    label: 'Proyecto',          icon: 'select', hidden: true,  sort: (t) => t.project || null },
+  { key: 'project_id', label: 'Proyecto',          icon: 'select', hidden: true,  sort: (t) => projectName(t.project_id) },
   { key: 'depends_on', label: 'Depende de',        icon: 'rel',    hidden: true,  sort: (t) => t.depends_on.length || null },
   { key: 'created_by', label: 'Creado por',        icon: 'person', hidden: true,  sort: (t) => userName(t.created_by) },
   { key: 'created_at', label: 'Fecha de creación', icon: 'clock',  hidden: true,  sort: (t) => t.created_at },
@@ -60,6 +60,7 @@ const COLUMNS = [
 /* ---------- Estado de la app ---------- */
 const state = {
   tasks: [],
+  projects: [],
   openId: null,
   comments: [],
   attachments: [],
@@ -136,7 +137,9 @@ const avatar = (u) => `<span class="avatar" style="background:${u.color}">${u.na
 const person = (id) => (user(id) ? `<span class="tag c-gray person">${esc(user(id).name)}</span>` : '');
 const people = (ids) => (ids || []).filter(user).map(person).join('');
 const assigneeNames = (t) => (t.assignees || []).map(userName).filter(Boolean).join(', ');
-const projectTag = (p) => (p ? `<span class="tag t${hashIdx(p, 6)}">${esc(p)}</span>` : '');
+const projectById = (id) => state.projects.find((p) => p.id === Number(id));
+const projectName = (id) => (projectById(id) ? projectById(id).name : null);
+const projectTag = (id) => (projectById(id) ? `<span class="tag t${hashIdx(projectName(id), 6)}">${esc(projectName(id))}</span>` : '');
 const EMPTY = '<span class="empty">Vacío</span>';
 
 /* ---------- Filtros (solo columnas con opciones definidas) ---------- */
@@ -156,10 +159,10 @@ const FILTERS = {
     show: (v) => (v ? person(v) : EMPTY), text: (v) => (v ? userName(v) : 'Vacío'),
     values: (t) => (t.assignees.length ? t.assignees : ['']),
   },
-  project: {
-    options: () => [...new Set(state.tasks.map((t) => t.project).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')).concat(''),
-    show: (v) => (v ? projectTag(v) : EMPTY), text: (v) => v || 'Vacío',
-    values: (t) => [t.project || ''],
+  project_id: {
+    options: () => state.projects.map((p) => String(p.id)),
+    show: (v) => projectTag(v), text: (v) => projectName(v) || '',
+    values: (t) => [String(t.project_id || '')],
   },
   created_by: {
     options: () => USERS.map((u) => u.id),
@@ -214,12 +217,12 @@ const norm = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0
 function matchesQuery(t) {
   const q = norm(state.query).trim();
   if (!q) return true;
-  const hay = norm([t.id, t.title, t.description, t.project, assigneeNames(t), STATUS[t.status].label].join(' '));
+  const hay = norm([t.id, t.title, t.description, projectName(t.project_id), assigneeNames(t), STATUS[t.status].label].join(' '));
   return q.split(/\s+/).every((w) => hay.includes(w));
 }
 
 function sortedTasks() {
-  const list = state.tasks.filter((t) => matchesQuery(t) && matchesFilters(t));
+  const list = state.tasks.filter((t) => t.project_id === prefs.project && matchesQuery(t) && matchesFilters(t));
   const { key, dir } = prefs.sort;
   const col = COLUMNS.find((c) => c.key === key);
   if (!col) return list.sort((a, b) => a.id - b.id);
@@ -248,7 +251,7 @@ function cell(col, t) {
     case 'status': return `<td>${pill(STATUS, t.status)}</td>`;
     case 'priority': return `<td>${pill(PRIORITY, t.priority)}</td>`;
     case 'assignees': return `<td><span class="people">${people(t.assignees)}</span></td>`;
-    case 'project': return `<td>${projectTag(t.project)}</td>`;
+    case 'project_id': return `<td>${projectTag(t.project_id)}</td>`;
     case 'due_at': return `<td class="${isOverdue(t) ? 'overdue' : ''}">${fmtDue(t.due_at)}</td>`;
     case 'depends_on': return `<td>${t.depends_on.map(byId).filter(Boolean).map((d) => depChip(d)).join('')}</td>`;
     case 'created_by': return `<td>${person(t.created_by)}</td>`;
@@ -257,6 +260,7 @@ function cell(col, t) {
 }
 
 function renderTable() {
+  if (state.projects.length) renderSidebar();
   renderTableView();
   renderBoard();
   const v = prefs.view;
@@ -299,18 +303,17 @@ function renderTableView() {
       <div class="h">${icon(c.icon)}${c.label}<span class="arrow">${(prefs.filters[c.key] || []).length ? '<span class="funnel">⏷</span>' : ''}${c.key === key ? (dir === 'asc' ? '↑' : '↓') : ''}</span></div>
     </th>`).join('')}</tr>`;
   const shown = sortedTasks();
-  $('#rows').innerHTML = shown.length ? '' : `<tr class="no-results"><td></td><td colspan="${cols.length}">${state.tasks.length ? 'Ninguna tarea coincide con la búsqueda o los filtros' : 'Todavía no hay tareas'}</td></tr>`;
+  $('#rows').innerHTML = shown.length ? '' : `<tr class="no-results"><td></td><td colspan="${cols.length}">${state.tasks.some((t) => t.project_id === prefs.project) ? 'Ninguna tarea coincide con la búsqueda o los filtros' : 'Este proyecto todavía no tiene tareas'}</td></tr>`;
   $('#rows').innerHTML += shown.map((t) =>
     `<tr data-open="${t.id}"><td class="gutter"><button class="row-del" data-del-task="${t.id}" title="Eliminar tarea">${icon('trash')}</button></td>${cols.map((c) => cell(c, t)).join('')}</tr>`).join('');
-  $('#count').textContent = isFiltering() ? `${shown.length} de ${state.tasks.length}` : state.tasks.length;
+  const total = state.tasks.filter((t) => t.project_id === prefs.project).length;
+  $('#count').textContent = isFiltering() ? `${shown.length} de ${total}` : total;
   renderFilterBar();
   $('#sort-tool').classList.toggle('on', !!key);
   $('#sort-tool').hidden = !key;
   $('#sort-tool').innerHTML = key
     ? `↕ ${COLUMNS.find((c) => c.key === key).label} ${dir === 'asc' ? '↑' : '↓'}`
     : '';
-  $('#projects').innerHTML = [...new Set(state.tasks.map((t) => t.project).filter(Boolean))]
-    .sort().map((p) => `<option value="${esc(p)}">`).join('');
 }
 
 function applySort(key) {
@@ -440,7 +443,8 @@ function renderPanel() {
             '<button class="mini" id="clear-due" title="Quitar fecha">Quitar fecha</button>'
           : ''), true)}
       ${prop('select', 'Prioridad', pickSelect('priority', PRIORITY, t.priority, true), true)}
-      ${prop('select', 'Proyecto', '<input class="plain" id="f-project" list="projects" placeholder="Vacío" autocomplete="off">', true)}
+      ${prop('select', 'Proyecto', `<span class="pick">${projectTag(t.project_id) || EMPTY}<select data-field="project_id">${state.projects.map((p) =>
+        `<option value="${p.id}" ${p.id === t.project_id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></span>`, true)}
       ${prop('person', 'Responsable', pickUsers(t.assignees), true)}
       ${prop('clock', 'Fecha de creación', `<span class="ro">${fmt(t.created_at)}</span>`)}
       ${prop('status', 'Estado', pickSelect('status', STATUS, t.status, false), true)}
@@ -485,7 +489,6 @@ function renderPanel() {
   // Valores de texto (se asignan por JS para no tener problemas con caracteres especiales)
   $('#f-title').value = t.title;
   $('#f-desc').value = t.description;
-  $('#f-project').value = t.project || '';
   $('#f-due-date').value = t.due_at ? t.due_at.split('T')[0] : '';
   if ($('#f-due-time')) $('#f-due-time').value = hasTime(t.due_at) ? t.due_at.split('T')[1] : '';
   autoGrow($('#f-title'));
@@ -622,6 +625,36 @@ async function deleteTask(id) {
   if (state.openId === id) closeTask();
   renderTable();
   toast(`Tarea ${t.id} eliminada`);
+}
+
+/* ---------- Proyectos (barra lateral) ---------- */
+function renderSidebar() {
+  $('#project-list').innerHTML = state.projects.map((p) => {
+    const open = state.tasks.filter((t) => t.project_id === p.id && t.status !== 'done').length;
+    return `<button class="side-item proj ${p.id === prefs.project ? 'active' : ''}" data-project="${p.id}">
+      <span class="proj-name">${esc(p.name)}</span>${open ? `<span class="side-n">${open}</span>` : ''}</button>`;
+  }).join('');
+  const current = projectById(prefs.project);
+  $('#page-title').textContent = current ? current.name : '';
+  document.title = current ? `${current.name} · BOVE` : 'BOVE';
+}
+
+function selectProject(id) {
+  if (state.openId) closeTask();
+  prefs.project = id;
+  savePrefs();
+  renderSidebar();
+  renderTable();
+}
+
+async function createProject(name) {
+  name = name.trim();
+  if (!name) return;
+  if (state.projects.some((p) => norm(p.name) === norm(name))) { toast(`Ya existe un proyecto llamado ${name}`); return; }
+  const p = await Api.createProject(name);
+  state.projects = await Api.listProjects();
+  selectProject(p.id);
+  toast(`Proyecto ${name} creado`);
 }
 
 /* ---------- Usuario actual ---------- */
@@ -784,7 +817,7 @@ document.addEventListener('click', async (e) => {
   // Nueva tarea
   const lane = target.closest('[data-new-in]');
   if (target.closest('#new-task, #add-row') || lane) {
-    const t = await Api.createTask({ created_by: prefs.user, assignees: [prefs.user], status: lane ? lane.dataset.newIn : 'todo' });
+    const t = await Api.createTask({ project_id: prefs.project, created_by: prefs.user, assignees: [prefs.user], status: lane ? lane.dataset.newIn : 'todo' });
     state.tasks.push(t);
     renderTable();
     await openTask(t.id);
@@ -804,6 +837,16 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  // Proyectos
+  const pj = target.closest('[data-project]');
+  if (pj) { selectProject(Number(pj.dataset.project)); return; }
+  if (target.closest('#new-project')) {
+    $('#new-project').hidden = true;
+    $('#new-project-input').hidden = false;
+    $('#new-project-input').focus();
+    return;
+  }
+
   // Cambiar usuario
   const ub = target.closest('[data-user]');
   if (ub) { prefs.user = ub.dataset.user; savePrefs(); renderUsers(); if (state.openId) renderPanel(); return; }
@@ -819,6 +862,9 @@ document.addEventListener('click', async (e) => {
     }
     await Api.resetAll(SEED);
     state.tasks = await Api.listTasks();
+    state.projects = await Api.listProjects();
+    prefs.project = state.projects[0].id; savePrefs();
+    renderSidebar();
     btn.classList.remove('armed'); btn.textContent = 'Restablecer datos de ejemplo';
     closeTask(); renderTable(); toast('Datos de ejemplo restablecidos');
     return;
@@ -830,7 +876,10 @@ document.addEventListener('click', async (e) => {
 
 document.addEventListener('change', async (e) => {
   const el = e.target;
-  if (el.matches('select[data-field]')) {
+  if (el.matches('select[data-field="project_id"]')) {
+    await updateTask({ project_id: Number(el.value) });
+    toast(`Tarea movida a ${projectName(Number(el.value))}`);
+  } else if (el.matches('select[data-field]')) {
     await updateTask({ [el.dataset.field]: el.value || null });
   } else if (el.id === 'f-due-date') {
     const t = byId(state.openId);
@@ -840,8 +889,6 @@ document.addEventListener('change', async (e) => {
     const date = byId(state.openId).due_at.split('T')[0];
     state.addingTime = false;
     await updateTask({ due_at: el.value ? `${date}T${el.value}` : date });
-  } else if (el.id === 'f-project') {
-    await updateTask({ project: el.value.trim() || null }, { rerenderPanel: false });
   } else if (el.id === 'up-photo') {
     await addFiles([...el.files], 'photo');
   } else if (el.id === 'up-file') {
@@ -874,11 +921,18 @@ document.addEventListener('input', (e) => {
 });
 
 document.addEventListener('keydown', async (e) => {
-  if (e.key === 'Escape') {
+  if (e.key === 'Escape' && e.target.id === 'new-project-input') { /* lo maneja abajo */ }
+  else if (e.key === 'Escape') {
     if (e.target.id === 'search') return clearSearch();
     if ($('#lightbox').classList.contains('open')) return $('#lightbox').classList.remove('open');
     if (pop().classList.contains('open')) return closePopover();
     if (state.openId) return closeTask();
+  }
+  if (e.target.id === 'new-project-input' && (e.key === 'Enter' || e.key === 'Escape')) {
+    const val = e.key === 'Enter' ? e.target.value : '';
+    e.target.value = ''; e.target.hidden = true; $('#new-project').hidden = false;
+    await createProject(val);
+    return;
   }
   if (e.target.id === 'f-title' && e.key === 'Enter') { e.preventDefault(); $('#f-desc').focus(); }
   if (e.target.id === 'f-comment' && e.key === 'Enter' && e.target.value.trim()) {
@@ -992,7 +1046,19 @@ board.addEventListener('drop', async (e) => {
 (async () => {
   try {
     await Api.ensureSeed(SEED);
+    state.projects = await Api.listProjects();
     state.tasks = await Api.listTasks();
+    // Migración: antes el proyecto era un texto libre; ahora cada tarea pertenece a un proyecto de la lista
+    const OLD = { ventas: 'Bus Light', operaciones: 'ERP', administracion: 'Bove', marketing: 'PUC' };
+    for (const t of state.tasks) {
+      if (t.project_id === undefined) {
+        const name = t.project ? (state.projects.find((p) => norm(p.name) === norm(t.project)) || {}).name || OLD[norm(t.project)] : null;
+        const proj = state.projects.find((p) => p.name === name) || state.projects.find((p) => p.name === 'Bove') || state.projects[0];
+        t.project_id = proj.id;
+        delete t.project;
+        await Api.saveTask(t);
+      }
+    }
     // Migración: antes había un solo responsable (assignee); ahora pueden ser varios (assignees)
     for (const t of state.tasks) {
       if (!Array.isArray(t.assignees)) {
@@ -1005,6 +1071,8 @@ board.addEventListener('drop', async (e) => {
     document.body.innerHTML = `<p style="padding:40px">No se pudo abrir la base de datos local: ${esc(err.message)}</p>`;
     return;
   }
+  if (!projectById(prefs.project)) { prefs.project = state.projects[0].id; savePrefs(); }
   renderUsers();
+  renderSidebar();
   renderTable();
 })();

@@ -3,15 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gestor de tareas</title>
+<title>BOVE</title>
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
 <aside class="sidebar">
-  <div class="ws"><span class="ws-icon">E</span>Espacio de la empresa</div>
-  <div class="side-label">Espacio de trabajo</div>
-  <div class="side-item active">✅ Gestor de tareas</div>
+  <div class="ws"><span class="ws-icon">B</span>BOVE</div>
+  <div class="side-label">Proyecto</div>
+  <div id="project-list"></div>
+  <button class="side-item side-add" id="new-project">＋ Crear proyecto</button>
+  <input class="new-project-input" id="new-project-input" placeholder="Nombre del proyecto y Enter" hidden>
   <div class="side-spacer"></div>
   <div class="user-switch">
     <div class="lbl">Usando la app como</div>
@@ -22,9 +24,7 @@
 
 <main>
   <div class="page">
-    <div class="page-icon">✅</div>
-    <h1>Gestor de tareas</h1>
-    <p class="page-desc">Todos los pendientes de la empresa en un solo lugar. Si no está aquí, no existe.</p>
+    <h1 id="page-title"></h1>
 
     <div class="db-bar">
       <button class="view-tab" data-view="table">▦ Tabla</button>
@@ -57,7 +57,6 @@
   </div>
 </main>
 
-<datalist id="projects"></datalist>
 
 <!-- Panel central de la tarea -->
 <div class="overlay" id="overlay">

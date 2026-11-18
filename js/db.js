@@ -6,7 +6,8 @@
  * las mismas funciones contra Supabase, y el resto de la app no cambia.
  *
  * Modelo de datos (pensado para que calce con tablas de Supabase):
- *   tasks       { id, title, description, status, priority, project, assignees: [ids],
+ *   projects    { id, name, created_at }
+ *   tasks       { id, project_id, title, description, status, priority, project, assignees: [ids],
  *                 created_by, created_at, due_at, depends_on: [ids] }
  *   comments    { id, task_id, author, body, created_at }
  *   attachments { id, task_id, kind: 'photo'|'file', name, type, size, blob,
@@ -15,21 +16,26 @@
 
 const LocalDB = (() => {
   const NAME = 'gestor-de-tareas';
-  const VERSION = 1;
+  const VERSION = 2;
   let dbPromise;
 
   function open() {
     if (!dbPromise) {
       dbPromise = new Promise((resolve, reject) => {
         const req = indexedDB.open(NAME, VERSION);
-        req.onupgradeneeded = () => {
+        req.onupgradeneeded = (e) => {
           const db = req.result;
-          db.createObjectStore('tasks', { keyPath: 'id' });
-          const c = db.createObjectStore('comments', { keyPath: 'id', autoIncrement: true });
-          c.createIndex('task_id', 'task_id');
-          const a = db.createObjectStore('attachments', { keyPath: 'id', autoIncrement: true });
-          a.createIndex('task_id', 'task_id');
-          db.createObjectStore('meta', { keyPath: 'key' });
+          if (e.oldVersion < 1) {
+            db.createObjectStore('tasks', { keyPath: 'id' });
+            const c = db.createObjectStore('comments', { keyPath: 'id', autoIncrement: true });
+            c.createIndex('task_id', 'task_id');
+            const a = db.createObjectStore('attachments', { keyPath: 'id', autoIncrement: true });
+            a.createIndex('task_id', 'task_id');
+            db.createObjectStore('meta', { keyPath: 'key' });
+          }
+          if (e.oldVersion < 2) {
+            db.createObjectStore('projects', { keyPath: 'id', autoIncrement: true });
+          }
         };
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
@@ -69,6 +75,9 @@ const nowISO = () => {
 
 const Api = {
   async ensureSeed(seed) {
+    if (!(await LocalDB.all('projects')).length) {
+      for (const p of seed.projects) await LocalDB.put('projects', p);
+    }
     const flag = await LocalDB.get('meta', 'seeded');
     if (flag) return;
     for (const t of seed.tasks) await LocalDB.put('tasks', t);
@@ -78,8 +87,14 @@ const Api = {
   },
 
   async resetAll(seed) {
-    for (const s of ['tasks', 'comments', 'attachments', 'meta']) await LocalDB.clear(s);
+    for (const s of ['projects', 'tasks', 'comments', 'attachments', 'meta']) await LocalDB.clear(s);
     await this.ensureSeed(seed);
+  },
+
+  listProjects: () => LocalDB.all('projects'),
+  async createProject(name) {
+    const id = await LocalDB.put('projects', { name, created_at: nowISO() });
+    return { id, name };
   },
 
   listTasks: () => LocalDB.all('tasks'),
@@ -92,7 +107,7 @@ const Api = {
       description: '',
       status: 'todo',
       priority: null,
-      project: null,
+      project_id: null,
       assignees: [],
       created_by: null,
       created_at: nowISO(),
