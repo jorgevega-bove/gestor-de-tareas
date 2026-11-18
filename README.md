@@ -35,10 +35,17 @@ No completada · En curso · En espera · Completada
 ```
 index.html       Página principal
 css/styles.css   Estilos
-js/db.js         Capa de datos (local). Se reemplazará por Supabase.
+js/config.js     Configuración (vacía = modo local; con datos de Supabase = modo compartido)
+js/db.js         Capa de datos local (IndexedDB)
+js/db.supabase.js Capa de datos compartida (Supabase)
+supabase/esquema.sql Esquema de base de datos para Supabase
 js/seed.js       Datos de ejemplo
 js/app.js        Lógica de la interfaz
 ```
+
+## Pasar a Supabase
+
+Todo está preparado para el modo compartido: ver [SUPABASE.md](SUPABASE.md).
 
 ## Pendiente
 
