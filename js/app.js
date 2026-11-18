@@ -447,7 +447,6 @@ function renderPanel() {
     <textarea class="m-title" id="f-title" rows="1" placeholder="Sin título"></textarea>
 
     <div class="props">
-      ${prop('id', 'ID', `<span class="ro">${code(t)}</span>`)}
       ${prop('person', 'Creado por', person(t.created_by))}
       ${prop('rel', 'Depende de', deps.map((d) => depChip(d, true)).join('') +
         `<button class="mini add-dep" id="add-dep">${deps.length ? '+' : 'Vacío'}</button>`, true)}
