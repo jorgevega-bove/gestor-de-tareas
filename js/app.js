@@ -144,7 +144,7 @@ const people = (ids) => (ids || []).filter(user).map(person).join('');
 const assigneeNames = (t) => (t.assignees || []).map(userName).filter(Boolean).join(', ');
 const projectById = (id) => state.projects.find((p) => p.id === Number(id));
 const projectName = (id) => (projectById(id) ? projectById(id).name : null);
-const projectTag = (id) => (projectById(id) ? `<span class="tag t${hashIdx(projectName(id), 6)}">${esc(projectName(id))}</span>` : '');
+const projectTag = (id) => (projectById(id) ? `<span class="tag t${Number(id) % 6}">${esc(projectName(id))}</span>` : '');
 const EMPTY = '<span class="empty">Vacío</span>';
 
 /* ---------- Filtros (solo columnas con opciones definidas) ---------- */
@@ -754,7 +754,8 @@ async function finishRenameProject(save) {
       toast('Proyecto renombrado');
     }
   }
-  renderSidebar();
+  renderTable(); // actualiza barra lateral, tabla, tablero y filtros
+  if (state.openId) renderPanel();
 }
 
 async function createProject(name) {
