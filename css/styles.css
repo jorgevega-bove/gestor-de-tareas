@@ -611,3 +611,8 @@ tbody tr.selected td.c-title { box-shadow: inset 2px 0 0 var(--accent); }
 .psec.closed .psec-h { margin-bottom: 0; }
 .psec.closed .attach-btn { display: none; }
 #panel-back[hidden] { display: none; }
+
+/* Columna ID: fija a la izquierda, compacta */
+th[data-pinned] { cursor: pointer; }
+td.c-code { font-variant-numeric: tabular-nums; }
+th[data-col="code"], td.c-code { padding-left: 8px; padding-right: 6px; }

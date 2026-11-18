@@ -94,7 +94,8 @@ prefs.order = [
 const DEFAULT_WIDTHS = { title: 320, status: 170, assignees: 190, priority: 120, due_at: 160,
   code: 90, project_id: 140, depends_on: 150, created_by: 140, created_at: 160 };
 prefs.widths = { ...DEFAULT_WIDTHS, ...(prefs.widths || {}) };
-if (prefs.widths.code < 90) prefs.widths.code = 90; // la columna ID era muy angosta para arrastrarla
+const ID_WIDTH = 58; // "# ID" y números de hasta 4 cifras
+prefs.widths.code = ID_WIDTH; // ancho fijo: lo justo para un ID de 4 cifras
 const MIN_WIDTH = 60;
 const GUTTER = 56; // espacio a la izquierda de la tabla: asa para arrastrar + basurero
 const orderedColumns = () => prefs.order.map((k) => COLUMNS.find((c) => c.key === k));
@@ -224,8 +225,12 @@ const inView = (t) => (isAllView() ? !(projectById(t.project_id) || {}).archived
 // En "Mostrar todos" la columna Proyecto se muestra siempre
 const isForcedColumn = (key) => isAllView() && key === 'project_id';
 
+// La columna ID, si está visible, va siempre primero (a la izquierda) y no se puede mover
+const PINNED = 'code';
 function visibleColumns() {
-  return orderedColumns().filter((c) => c.fixed || isForcedColumn(c.key) || !prefs.hidden.includes(c.key));
+  const cols = orderedColumns().filter((c) => c.fixed || isForcedColumn(c.key) || !prefs.hidden.includes(c.key));
+  const pinned = cols.filter((c) => c.key === PINNED);
+  return [...pinned, ...cols.filter((c) => c.key !== PINNED)];
 }
 
 const norm = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -385,9 +390,9 @@ function renderTableView() {
   $('#colgroup').innerHTML = `<col style="width:${GUTTER}px">` + cols.map((c) => `<col data-w="${c.key}" style="width:${prefs.widths[c.key]}px">`).join('');
   $('#task-table').style.width = `${GUTTER + cols.reduce((n, c) => n + prefs.widths[c.key], 0)}px`;
   $('#thead').innerHTML = `<tr><th class="gutter"></th>${cols.map((c) => `
-    <th data-head="${c.key}" data-col="${c.key}" draggable="true" class="${c.key === key ? 'sorted' : ''} ${(prefs.filters[c.key] || []).length ? 'filtered' : ''}" title="Clic para ordenar o filtrar · arrastra para mover">
+    <th data-head="${c.key}" data-col="${c.key}" ${c.key === PINNED ? 'data-pinned' : 'draggable="true"'} class="${c.key === key ? 'sorted' : ''} ${(prefs.filters[c.key] || []).length ? 'filtered' : ''}" title="Clic para ordenar o filtrar · arrastra para mover">
       <div class="h">${icon(c.icon)}${c.label}<span class="arrow">${(prefs.filters[c.key] || []).length ? `<span class="funnel">${FUNNEL_ICON}</span>` : ''}${c.key === key ? (dir === 'asc' ? '↑' : '↓') : ''}</span></div>
-      <span class="col-resize" data-resize="${c.key}" title="Arrastra para cambiar el ancho"></span>
+      ${c.key === PINNED ? '' : `<span class="col-resize" data-resize="${c.key}" title="Arrastra para cambiar el ancho"></span>`}
     </th>`).join('')}</tr>`;
   const shown = sortedTasks();
   $('#rows').innerHTML = shown.length ? '' : `<tr class="no-results"><td></td><td colspan="${cols.length}">${state.tasks.some(inView) ? 'Ninguna tarea coincide con la búsqueda o los filtros' : (isAllView() ? 'No hay tareas en los proyectos en curso' : 'Este proyecto todavía no tiene tareas')}</td></tr>`;
@@ -1958,7 +1963,7 @@ thead.addEventListener('dragover', (e) => {
   if (!th || !dragCol) return;
   e.preventDefault();
   thead.querySelectorAll('th').forEach((x) => x !== th && x.classList.remove('drop-before', 'drop-after'));
-  if (th.dataset.col === dragCol) return;
+  if (th.dataset.col === dragCol || th.hasAttribute('data-pinned')) return;
   const r = th.getBoundingClientRect();
   const after = e.clientX > r.left + r.width / 2;
   th.classList.toggle('drop-after', after);
@@ -1970,7 +1975,7 @@ thead.addEventListener('drop', (e) => {
   e.preventDefault();
   const target = th.dataset.col;
   const after = th.classList.contains('drop-after');
-  if (target !== dragCol) {
+  if (target !== dragCol && !th.hasAttribute('data-pinned')) {
     const order = prefs.order.filter((k) => k !== dragCol);
     order.splice(order.indexOf(target) + (after ? 1 : 0), 0, dragCol);
     prefs.order = order;
