@@ -43,6 +43,8 @@ const FUNNEL_ICON = '<svg class="i line-ico" viewBox="0 0 16 16" fill="none" str
 const LINK_ICON = '<svg class="i line-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6.75 9.25a2.75 2.75 0 0 0 3.9 0l2.35-2.35a2.75 2.75 0 0 0-3.9-3.9l-.85.85"/><path d="M9.25 6.75a2.75 2.75 0 0 0-3.9 0L3 9.1a2.75 2.75 0 0 0 3.9 3.9l.85-.85"/></svg>';
 const TOGGLE_ICON = '<svg class="i" viewBox="0 0 16 16"><path d="M5 3.5h6a4.5 4.5 0 0 1 0 9H5a4.5 4.5 0 0 1 0-9zm0 1.5a3 3 0 0 0 0 6h6a3 3 0 0 0 0-6zm6 .75a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5z"/></svg>';
 const BOARD_ICON = '<svg class="i line-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="2"/><path d="M5.9 2.75v10.5M10.1 2.75v10.5"/></svg>';
+// Clip para adjuntar archivos
+const CLIP_ICON = '<svg class="i line-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13.25 7.5 8 12.75a3.4 3.4 0 0 1-4.8-4.8l5.4-5.4a2.25 2.25 0 0 1 3.2 3.2L6.4 11.15a1.1 1.1 0 0 1-1.55-1.55L9.9 4.55"/></svg>';
 const icon = (name) => name === 'link' ? LINK_ICON : `<svg class="i" viewBox="0 0 16 16"><path d="${P[name]}"/></svg>`;
 
 /* ---------- Columnas ---------- */
@@ -543,7 +545,7 @@ function renderPanel() {
 
     <div class="divider"></div>
     <div class="section-h first">Archivos adjuntos
-      <label class="add">+ Adjuntar archivos<input type="file" id="up-file" multiple hidden></label>
+      <label class="add attach-btn" title="Adjuntar archivos">${CLIP_ICON}<input type="file" id="up-file" multiple hidden></label>
     </div>
     ${files.length ? `<div class="files">${files.map((a) => {
       const e = extStyle(a.name);

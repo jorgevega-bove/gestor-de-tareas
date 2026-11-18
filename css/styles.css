@@ -597,3 +597,6 @@ tbody tr.selected td.c-title { box-shadow: inset 2px 0 0 var(--accent); }
 .side-item.proj { gap: 4px; }
 .proj-archive { width: 20px; height: 20px; }
 .proj-archive + .proj-delete { margin-left: -2px; }
+.section-h .attach-btn { display: inline-grid; place-items: center; width: 26px; height: 26px; padding: 0; color: var(--text-2); }
+.section-h .attach-btn svg.line-ico { width: 16px; height: 16px; }
+.section-h .attach-btn:hover { color: var(--text); }
