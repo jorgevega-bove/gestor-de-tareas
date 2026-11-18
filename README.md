@@ -15,7 +15,7 @@ Por ahora los datos se guardan en el navegador (IndexedDB), así que cada comput
 - Título del proyecto editable con un clic; proyectos reordenables arrastrándolos en la barra lateral.
 - Proyectos en la barra lateral (en curso y archivados), opción "+ Crear proyecto" y "Mostrar todos" para ver las tareas de todos los proyectos en curso.
 - Vista de **tabla**: clic en un encabezado para Ordenar o Filtrar (con casillas en Estado, Prioridad, Responsable, Proyecto y Creado por); con columnas que se reordenan arrastrando y se ocultan (botón "Propiedades").
-- Vista de **tablero** (Kanban) por estado; las tarjetas se arrastran entre columnas.
+- Vista **Kanban** por estado; las tarjetas se arrastran entre columnas.
 - Búsqueda por título, texto, ID, proyecto o responsable (Cmd+F).
 - Panel de detalle con propiedades, comentarios, texto libre y archivos adjuntos (arrastrar al panel para adjuntar).
 - Dependencias entre tareas, con cambio automático de estado cuando se completan.
