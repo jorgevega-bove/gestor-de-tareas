@@ -183,10 +183,10 @@ const activeFilters = () => Object.entries(prefs.filters).filter(([k, v]) => FIL
 const matchesFilters = (t) => activeFilters().every(([k, sel]) => FILTERS[k].values(t).some((v) => sel.includes(v)));
 const isFiltering = () => !!state.query.trim() || activeFilters().length > 0;
 // Contenedor con flecha e ID; su color es el del estado de la tarea referenciada
-const depChip = (t, removable = false, link = true) =>
+const depChip = (t, removable = false, link = true, reverse = false) =>
   `<span class="dep tag ${STATUS[t.status].cls}" ${link ? `data-open="${t.id}"` : ''} title="${esc(t.title)} · ${STATUS[t.status].label}">` +
   `<span class="dep-arrow">↗</span>${code(t)}` +
-  (removable ? `<button class="tag-x" data-remove-dep="${t.id}" title="Quitar">×</button>` : '') + '</span>';
+  (removable ? `<button class="tag-x" ${reverse ? 'data-remove-rdep' : 'data-remove-dep'}="${t.id}" title="Quitar">×</button>` : '') + '</span>';
 
 /* ============================================================
  *  Regla automática de dependencias
@@ -524,6 +524,8 @@ function renderPanel() {
       ${prop('select', 'Proyecto', `<button class="pick-btn" id="pick-project">${projectTag(t.project_id) || EMPTY}</button>`, true)}
       ${prop('link', 'Depende de', deps.map((d) => depChip(d, true)).join('') +
         `<button class="mini add-dep" id="add-dep">${deps.length ? '+' : 'Vacío'}</button>`, true)}
+      ${prop('link', 'Condiciona a', blocking(t).map((d) => depChip(d, true, true, true)).join('') +
+        `<button class="mini add-dep" id="add-rdep">${blocking(t).length ? '+' : 'Vacío'}</button>`, true)}
       ${prop('person', 'Creado por', person(t.created_by))}
       ${prop('clock', 'Fecha de creación', `<span class="ro">${fmt(t.created_at)}</span>`)}
     </div>
@@ -656,10 +658,14 @@ new ResizeObserver(() => placePopover()).observe(pop());
 window.addEventListener('resize', placePopover);
 function closePopover() { pop().classList.remove('open'); pop().dataset.kind = ''; }
 
-function openDepPicker(anchor, taskId = state.openId) {
+// reverse = false: "Depende de" (tareas de las que depende esta)
+// reverse = true:  "Condiciona a" (tareas que dependen de esta). Es la misma relación vista desde el otro lado.
+function openDepPicker(anchor, taskId = state.openId, reverse = false) {
   const t = byId(taskId);
   const candidates = () => state.tasks
-    .filter((x) => x.id !== t.id && !t.depends_on.includes(x.id) && !dependsOn(x, t.id))
+    .filter((x) => x.id !== t.id && (reverse
+      ? !x.depends_on.includes(t.id) && !dependsOn(t, x.id)
+      : !t.depends_on.includes(x.id) && !dependsOn(x, t.id)))
     .sort((a, b) => a.id - b.id);
   // Búsqueda por ID ("3", "#3", "id 3") o por título; el ID exacto aparece primero
   const list = (q) => {
@@ -668,14 +674,14 @@ function openDepPicker(anchor, taskId = state.openId) {
     const items = candidates().filter((x) => (idq && String(x.id).startsWith(idq)) || norm(x.title).includes(norm(raw)))
       .sort((a, b) => (idq ? (String(b.id) === idq) - (String(a.id) === idq) : 0) || a.id - b.id);
     return items.length ? items.map((x) => `
-      <div class="opt dep-opt" data-add-dep="${x.id}"><span class="code">${code(x)}</span><span class="ttl">${esc(x.title || 'Sin título')}</span>
+      <div class="opt dep-opt" ${reverse ? 'data-add-rdep' : 'data-add-dep'}="${x.id}"><span class="code">${code(x)}</span><span class="ttl">${esc(x.title || 'Sin título')}</span>
       <span class="dep-status">${pill(STATUS, x.status)}</span></div>`).join('')
       : '<div class="title">No hay tareas disponibles</div>';
   };
-  const current = t.depends_on.map(byId).filter(Boolean);
-  openPopover(anchor, `<div class="title">Esta tarea depende de…</div>
+  const current = reverse ? blocking(t) : t.depends_on.map(byId).filter(Boolean);
+  openPopover(anchor, `<div class="title">${reverse ? 'Esta tarea condiciona a…' : 'Esta tarea depende de…'}</div>
     ${current.length ? `<div class="pop-current">${current.map((d) =>
-      `<span class="tag c-gray person">${code(d)} · ${esc(d.title || 'Sin título')}<button class="tag-x" data-pop-rm-dep="${d.id}" title="Quitar">×</button></span>`).join('')}</div>` : ''}
+      `<span class="tag c-gray person">${code(d)} · ${esc(d.title || 'Sin título')}<button class="tag-x" ${reverse ? 'data-pop-rm-rdep' : 'data-pop-rm-dep'}="${d.id}" title="Quitar">×</button></span>`).join('')}</div>` : ''}
     <input class="search" id="dep-search" placeholder="Buscar por ID o título">
     <div class="opts" id="dep-opts">${list('')}</div>`);
   pop().dataset.kind = 'deps';
@@ -1294,6 +1300,28 @@ document.addEventListener('click', async (e) => {
     closePopover(); refreshTask(t.id);
     return;
   }
+  // "Condiciona a": se agrega/quita esta tarea en las dependencias de la otra
+  const rdepOpt = target.closest('[data-add-rdep]');
+  if (rdepOpt) {
+    const t = popTask();
+    const other = byId(Number(rdepOpt.dataset.addRdep));
+    other.depends_on = [...other.depends_on, t.id];
+    await onDependencyAdded(other, t);
+    await Api.saveTask(other);
+    closePopover();
+    refreshTask(t.id);
+    return;
+  }
+  const prrd = target.closest('[data-pop-rm-rdep]');
+  if (prrd) {
+    const t = popTask();
+    const other = byId(Number(prrd.dataset.popRmRdep));
+    other.depends_on = other.depends_on.filter((x) => x !== t.id);
+    await Api.saveTask(other);
+    await releaseIfFree(other, true);
+    closePopover(); refreshTask(t.id);
+    return;
+  }
   const depOpt = target.closest('[data-add-dep]');
   if (depOpt) {
     const t = popTask();
@@ -1397,7 +1425,7 @@ document.addEventListener('click', async (e) => {
   const gp = target.closest('[data-group]');
   if (gp) { prefs.groupBy = gp.dataset.group; savePrefs(); closePopover(); renderTable(); return; }
   if (pop().contains(target)) return;
-  if (pop().classList.contains('open') && !target.closest('#add-dep, #cols-tool, #group-tool, #add-user, #pick-project, #pick-due')) { closePopover(); }
+  if (pop().classList.contains('open') && !target.closest('#add-dep, #add-rdep, #cols-tool, #group-tool, #add-user, #pick-project, #pick-due')) { closePopover(); }
 
   // Borrar adjunto (antes que el enlace de descarga)
   const delAtt = target.closest('[data-del-att]');
@@ -1423,6 +1451,16 @@ document.addEventListener('click', async (e) => {
   }
 
   // Quitar dependencia
+  const rrm = target.closest('[data-remove-rdep]');
+  if (rrm) {
+    const t = byId(state.openId);
+    const other = byId(Number(rrm.dataset.removeRdep));
+    other.depends_on = other.depends_on.filter((x) => x !== t.id);
+    await Api.saveTask(other);
+    await releaseIfFree(other, true);
+    renderTable(); renderPanel();
+    return;
+  }
   const rm = target.closest('[data-remove-dep]');
   if (rm) {
     const t = byId(state.openId);
@@ -1452,6 +1490,7 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if (target.closest('#add-dep')) { openDepPicker(target.closest('#add-dep')); return; }
+  if (target.closest('#add-rdep')) { openDepPicker(target.closest('#add-rdep'), state.openId, true); return; }
   if (target.closest('#group-tool')) { openGroupMenu(target.closest('#group-tool')); return; }
   if (target.closest('#cols-tool')) { openColumnsMenu(target.closest('#cols-tool')); return; }
   if (target.closest('#search-tool')) { $('#search-box').classList.add('open'); $('#search').focus(); return; }
