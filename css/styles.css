@@ -573,3 +573,13 @@ tbody tr.selected td.c-title { box-shadow: inset 2px 0 0 var(--accent); }
 .sel-bar .sel-del { color: #d44c47; }
 .sel-bar .sel-del:hover { background: #fdebec; }
 .sel-bar .sel-x { color: var(--text-3); margin-left: 4px; }
+
+/* ---------- Kanban: línea bajo el título y color por estado ---------- */
+.card { flex-direction: column; gap: 3px; }
+.card-title { font-weight: 500; }
+.card-meta { font-size: 12px; font-weight: 400; color: var(--text-2); }
+.card.st-todo  { background: #ffe2dd; } .card.st-todo:hover  { background: #fdd8d2; }
+.card.st-doing { background: #d3e5ef; } .card.st-doing:hover { background: #c8dde9; }
+.card.st-wait  { background: #fdecc8; } .card.st-wait:hover  { background: #fbe4b6; }
+.card.st-done  { background: #dbeddb; } .card.st-done:hover  { background: #d0e6d0; }
+.card[class*="st-"] .card-meta { color: rgba(55,53,47,.75); }

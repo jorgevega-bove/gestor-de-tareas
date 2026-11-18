@@ -335,6 +335,12 @@ async function moveToLane(t, g, from, to) {
   await Api.saveTask(t);
 }
 
+// Línea bajo el título de la tarjeta: el responsable, o el estado si se agrupa por responsable
+function cardMeta(t, g) {
+  if (g === 'assignees') return `<div class="card-meta">Estado: ${esc(STATUS[t.status].label)}</div>`;
+  return `<div class="card-meta">Responsable: ${esc(assigneeNames(t) || 'Sin responsable')}</div>`;
+}
+
 function renderBoard() {
   const g = prefs.groupBy || 'status';
   const list = sortedTasks();
@@ -345,8 +351,9 @@ function renderBoard() {
     return `<div class="lane" data-lane="${esc(k)}" style="background:${bg || '#f7f7f5'}">
       <div class="lane-h">${head}<span class="n">${items.length}</span></div>
       <div class="cards">${items.map((t) => `
-        <div class="card" ${readOnly ? '' : 'draggable="true"'} data-open="${t.id}" data-card="${t.id}">
-          ${t.title ? esc(t.title) : '<span class="untitled">Sin título</span>'}
+        <div class="card ${g === 'assignees' ? `st-${t.status}` : ''}" ${readOnly ? '' : 'draggable="true"'} data-open="${t.id}" data-card="${t.id}">
+          <div class="card-title">${t.title ? esc(t.title) : '<span class="untitled">Sin título</span>'}</div>
+          ${cardMeta(t, g)}
         </div>`).join('')}</div>
       <div class="new-card" data-new-in="${esc(k)}">＋ Nueva</div>
     </div>`;
