@@ -12,6 +12,7 @@ Por ahora los datos se guardan en el navegador (IndexedDB), así que cada comput
 
 - Vista de **tabla** ordenable por columna, con columnas ocultables (botón "Propiedades").
 - Vista de **tablero** (Kanban) por estado; las tarjetas se arrastran entre columnas.
+- Búsqueda por título, texto, ID, proyecto o responsable (Cmd+F).
 - Panel de detalle con propiedades, comentarios, texto libre, fotos y archivos adjuntos.
 - Dependencias entre tareas, con cambio automático de estado cuando se completan.
 - Usuarios de prueba: Jorge, Francisco y Ulises.

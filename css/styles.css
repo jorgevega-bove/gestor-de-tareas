@@ -283,3 +283,12 @@ tbody tr:hover .row-del { opacity: 1; }
 .row-del:hover { background: var(--hover); color: var(--text-2); }
 .row-del.armed { opacity: 1; background: #fdebec; color: var(--danger); }
 .add-row, .count { margin-left: 0; }
+
+/* ---------- Búsqueda ---------- */
+.search-box { display: flex; align-items: center; }
+.search-box input { width: 0; padding: 0; border: none; outline: none; background: transparent; transition: width .15s ease; }
+.search-box #search-clear { display: none; }
+.search-box.open input { width: 180px; padding: 2px 4px; }
+.search-box.open #search-clear { display: inline-block; }
+.search-box.open #search-tool { color: var(--text); }
+.no-results td { color: var(--text-3); text-align: center !important; height: 60px; }

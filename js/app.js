@@ -55,8 +55,6 @@ const COLUMNS = [
   { key: 'depends_on', label: 'Depende de',        icon: 'rel',                   sort: (t) => t.depends_on.length || null },
   { key: 'created_by', label: 'Creado por',        icon: 'person', hidden: true,  sort: (t) => userName(t.created_by) },
   { key: 'created_at', label: 'Fecha de creación', icon: 'clock',  hidden: true,  sort: (t) => t.created_at },
-  { key: 'blocked_by', label: 'Bloqueado por',     icon: 'rel',    hidden: true,  sort: (t) => blockedBy(t).length || null },
-  { key: 'blocking',   label: 'Bloqueando',        icon: 'rel',    hidden: true,  sort: (t) => blocking(t).length || null },
 ];
 
 /* ---------- Estado de la app ---------- */
@@ -65,6 +63,7 @@ const state = {
   openId: null,
   comments: [],
   attachments: [],
+  query: '',
 };
 
 const prefs = (() => {
@@ -154,8 +153,16 @@ function visibleColumns() {
   return COLUMNS.filter((c) => c.fixed || !prefs.hidden.includes(c.key));
 }
 
+const norm = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function matchesQuery(t) {
+  const q = norm(state.query).trim();
+  if (!q) return true;
+  const hay = norm([t.id, t.title, t.description, t.project, userName(t.assignee), STATUS[t.status].label].join(' '));
+  return q.split(/\s+/).every((w) => hay.includes(w));
+}
+
 function sortedTasks() {
-  const list = [...state.tasks];
+  const list = state.tasks.filter(matchesQuery);
   const { key, dir } = prefs.sort;
   const col = COLUMNS.find((c) => c.key === key);
   if (!col) return list.sort((a, b) => a.id - b.id);
@@ -190,8 +197,6 @@ function cell(col, t) {
     case 'depends_on': return `<td>${t.depends_on.map(byId).filter(Boolean).map((d) => depChip(d)).join('')}</td>`;
     case 'created_by': return `<td>${person(t.created_by)}</td>`;
     case 'created_at': return `<td>${fmt(t.created_at)}</td>`;
-    case 'blocked_by': return `<td>${blockedBy(t).map((d) => depChip(d)).join('')}</td>`;
-    case 'blocking': return `<td>${blocking(t).map((d) => depChip(d)).join('')}</td>`;
   }
 }
 
@@ -237,9 +242,11 @@ function renderTableView() {
     <th data-sort="${c.key}" class="${c.key === key ? 'sorted' : ''}">
       <div class="h">${icon(c.icon)}${c.label}<span class="arrow">${c.key === key ? (dir === 'asc' ? '↑' : '↓') : ''}</span></div>
     </th>`).join('')}</tr>`;
-  $('#rows').innerHTML = sortedTasks().map((t) =>
+  const shown = sortedTasks();
+  $('#rows').innerHTML = shown.length ? '' : `<tr class="no-results"><td></td><td colspan="${cols.length}">Ninguna tarea coincide con “${esc(state.query)}”</td></tr>`;
+  $('#rows').innerHTML += shown.map((t) =>
     `<tr data-open="${t.id}"><td class="gutter"><button class="row-del" data-del-task="${t.id}" title="Eliminar tarea">${icon('trash')}</button></td>${cols.map((c) => cell(c, t)).join('')}</tr>`).join('');
-  $('#count').textContent = state.tasks.length;
+  $('#count').textContent = state.query.trim() ? `${shown.length} de ${state.tasks.length}` : state.tasks.length;
   $('#sort-tool').classList.toggle('on', !!key);
   $('#sort-tool').innerHTML = key
     ? `↕ ${COLUMNS.find((c) => c.key === key).label} ${dir === 'asc' ? '↑' : '↓'}`
@@ -315,8 +322,6 @@ function renderPanel() {
       ${prop('select', 'Proyecto', '<input class="plain" id="f-project" list="projects" placeholder="Vacío" autocomplete="off">', true)}
       ${prop('person', 'Responsable', pickUser(t.assignee), true)}
       ${prop('clock', 'Fecha de creación', `<span class="ro">${fmt(t.created_at)}</span>`)}
-      ${prop('rel', 'Bloqueado por', blockedBy(t).map((d) => depChip(d)).join('') || '<span class="empty">Vacío</span>')}
-      ${prop('rel', 'Bloqueando', blocking(t).map((d) => depChip(d)).join('') || '<span class="empty">Vacío</span>')}
       ${prop('status', 'Estado', pickSelect('status', STATUS, t.status, false), true)}
     </div>
 
@@ -552,6 +557,8 @@ document.addEventListener('click', async (e) => {
 
   if (target.closest('#add-dep')) { openDepPicker(target.closest('#add-dep')); return; }
   if (target.closest('#cols-tool')) { openColumnsMenu(target.closest('#cols-tool')); return; }
+  if (target.closest('#search-tool')) { $('#search-box').classList.add('open'); $('#search').focus(); return; }
+  if (target.closest('#search-clear')) { clearSearch(); return; }
   if (target.closest('#sort-tool')) { prefs.sort = { key: null, dir: null }; savePrefs(); renderTable(); return; }
 
   // Ver foto en grande
@@ -652,8 +659,16 @@ document.addEventListener('change', async (e) => {
   }
 });
 
+function clearSearch() {
+  state.query = '';
+  $('#search').value = '';
+  $('#search-box').classList.remove('open');
+  renderTable();
+}
+
 document.addEventListener('input', (e) => {
   const el = e.target;
+  if (el.id === 'search') { state.query = el.value; renderTable(); return; }
   if (el.id === 'f-title') {
     autoGrow(el);
     byId(state.openId).title = el.value;
@@ -670,6 +685,7 @@ document.addEventListener('input', (e) => {
 
 document.addEventListener('keydown', async (e) => {
   if (e.key === 'Escape') {
+    if (e.target.id === 'search') return clearSearch();
     if ($('#lightbox').classList.contains('open')) return $('#lightbox').classList.remove('open');
     if (pop().classList.contains('open')) return closePopover();
     if (state.openId) return closeTask();
@@ -695,6 +711,15 @@ modal.addEventListener('drop', (e) => {
 });
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', (e) => e.preventDefault());
+
+// Al salir del buscador vacío, se vuelve a esconder
+$('#search').addEventListener('blur', () => { if (!state.query.trim()) $('#search-box').classList.remove('open'); });
+// Atajo: Cmd/Ctrl + F abre la búsqueda (cuando no hay una tarea abierta)
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f' && !state.openId) {
+    e.preventDefault(); $('#search-box').classList.add('open'); $('#search').focus(); $('#search').select();
+  }
+});
 
 // Si el mouse sale de la fila, el basurero vuelve a su estado normal
 $('#rows').addEventListener('mouseout', (e) => {
