@@ -51,7 +51,7 @@ const COLUMNS = [
   { key: 'priority',   label: 'Prioridad',         icon: 'select',                sort: (t) => (t.priority ? PRIORITY[t.priority].order : null) },
   { key: 'assignee',   label: 'Responsable',       icon: 'person',                sort: (t) => userName(t.assignee) },
   { key: 'project',    label: 'Proyecto',          icon: 'select',                sort: (t) => t.project || null },
-  { key: 'due_at',     label: 'Fecha límite',      icon: 'cal',                   sort: (t) => t.due_at || null },
+  { key: 'due_at',     label: 'Fecha límite',      icon: 'cal',                   sort: (t) => (t.due_at ? dueSortKey(t.due_at) : null) },
   { key: 'depends_on', label: 'Depende de',        icon: 'rel',                   sort: (t) => t.depends_on.length || null },
   { key: 'created_by', label: 'Creado por',        icon: 'person', hidden: true,  sort: (t) => userName(t.created_by) },
   { key: 'created_at', label: 'Fecha de creación', icon: 'clock',  hidden: true,  sort: (t) => t.created_at },
@@ -100,7 +100,22 @@ function fmtSize(b) {
   if (b < 1024 ** 3) return `${(b / 1024 ** 2).toFixed(1).replace('.', ',')} MB`;
   return `${(b / 1024 ** 3).toFixed(2).replace('.', ',')} GB`;
 }
-const isOverdue = (t) => t.due_at && t.status !== 'done' && new Date(t.due_at) < new Date();
+// La fecha límite puede ser solo fecha ('2026-11-20') o fecha y hora ('2026-11-20T18:00').
+// Sin hora, la tarea vence al final de ese día.
+const hasTime = (v) => !!v && v.includes('T');
+const dueSortKey = (v) => (hasTime(v) ? v : `${v}T23:59`);
+function parseLocal(v) {
+  const [d, tm = '23:59'] = v.split('T');
+  const [y, m, day] = d.split('-').map(Number);
+  const [h, mi] = tm.split(':').map(Number);
+  return new Date(y, m - 1, day, h, mi);
+}
+function fmtDue(v) {
+  if (!v) return '';
+  const [y, m, d] = v.split('T')[0].split('-');
+  return `${d}/${m}/${y}` + (hasTime(v) ? ` ${v.split('T')[1]}` : '');
+}
+const isOverdue = (t) => t.due_at && t.status !== 'done' && parseLocal(t.due_at) < new Date();
 function hashIdx(s, n) { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h % n; }
 
 const blockedBy = (t) => t.depends_on.map(byId).filter((x) => x && x.status !== 'done');
@@ -198,7 +213,7 @@ function cell(col, t) {
     case 'priority': return `<td>${pill(PRIORITY, t.priority)}</td>`;
     case 'assignee': return `<td>${person(t.assignee)}</td>`;
     case 'project': return `<td>${projectTag(t.project)}</td>`;
-    case 'due_at': return `<td class="${isOverdue(t) ? 'overdue' : ''}">${fmt(t.due_at)}</td>`;
+    case 'due_at': return `<td class="${isOverdue(t) ? 'overdue' : ''}">${fmtDue(t.due_at)}</td>`;
     case 'depends_on': return `<td>${t.depends_on.map(byId).filter(Boolean).map((d) => depChip(d)).join('')}</td>`;
     case 'created_by': return `<td>${person(t.created_by)}</td>`;
     case 'created_at': return `<td>${fmt(t.created_at)}</td>`;
@@ -320,8 +335,13 @@ function renderPanel() {
       ${prop('person', 'Creado por', person(t.created_by))}
       ${prop('rel', 'Depende de', deps.map((d) => depChip(d, true)).join('') +
         `<button class="mini add-dep" id="add-dep">${deps.length ? '+' : 'Vacío'}</button>`, true)}
-      ${prop('cal', 'Fecha límite', `<input type="datetime-local" id="f-due" class="${t.due_at ? '' : 'blank'}">` +
-        (t.due_at ? '<button class="mini" id="clear-due" title="Quitar fecha">×</button>' : ''), true)}
+      ${prop('cal', 'Fecha límite', `<input type="date" id="f-due-date" class="${t.due_at ? '' : 'blank'}">` +
+        (t.due_at
+          ? (hasTime(t.due_at) || state.addingTime
+              ? '<input type="time" id="f-due-time" class="due-time"><button class="mini" id="clear-time" title="Quitar hora">× hora</button>'
+              : '<button class="mini" id="add-time">+ Agregar hora</button>') +
+            '<button class="mini" id="clear-due" title="Quitar fecha">Quitar fecha</button>'
+          : ''), true)}
       ${prop('select', 'Prioridad', pickSelect('priority', PRIORITY, t.priority, true), true)}
       ${prop('select', 'Proyecto', '<input class="plain" id="f-project" list="projects" placeholder="Vacío" autocomplete="off">', true)}
       ${prop('person', 'Responsable', pickUser(t.assignee), true)}
@@ -369,7 +389,8 @@ function renderPanel() {
   $('#f-title').value = t.title;
   $('#f-desc').value = t.description;
   $('#f-project').value = t.project || '';
-  $('#f-due').value = t.due_at || '';
+  $('#f-due-date').value = t.due_at ? t.due_at.split('T')[0] : '';
+  if ($('#f-due-time')) $('#f-due-time').value = hasTime(t.due_at) ? t.due_at.split('T')[1] : '';
   autoGrow($('#f-title'));
   autoGrow($('#f-desc'));
   overlay.scrollTop = scroll;
@@ -383,6 +404,7 @@ async function openTask(id) {
     revokeUrls();
   }
   state.openId = id;
+  state.addingTime = false;
   [state.comments, state.attachments] = await Promise.all([Api.listComments(id), Api.listAttachments(id)]);
   state.comments.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id);
   const wasOpen = $('#overlay').classList.contains('open');
@@ -559,6 +581,13 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  if (target.closest('#add-time')) { state.addingTime = true; renderPanel(); $('#f-due-time').focus(); return; }
+  if (target.closest('#clear-time')) {
+    state.addingTime = false;
+    await updateTask({ due_at: byId(state.openId).due_at.split('T')[0] });
+    return;
+  }
+  if (target.closest('#clear-due')) { state.addingTime = false; await updateTask({ due_at: null }); return; }
   if (target.closest('#add-dep')) { openDepPicker(target.closest('#add-dep')); return; }
   if (target.closest('#cols-tool')) { openColumnsMenu(target.closest('#cols-tool')); return; }
   if (target.closest('#search-tool')) { $('#search-box').classList.add('open'); $('#search').focus(); return; }
@@ -652,8 +681,14 @@ document.addEventListener('change', async (e) => {
   const el = e.target;
   if (el.matches('select[data-field]')) {
     await updateTask({ [el.dataset.field]: el.value || null });
-  } else if (el.id === 'f-due') {
-    await updateTask({ due_at: el.value || null });
+  } else if (el.id === 'f-due-date') {
+    const t = byId(state.openId);
+    const time = hasTime(t.due_at) ? `T${t.due_at.split('T')[1]}` : '';
+    await updateTask({ due_at: el.value ? el.value + time : null });
+  } else if (el.id === 'f-due-time') {
+    const date = byId(state.openId).due_at.split('T')[0];
+    state.addingTime = false;
+    await updateTask({ due_at: el.value ? `${date}T${el.value}` : date });
   } else if (el.id === 'f-project') {
     await updateTask({ project: el.value.trim() || null }, { rerenderPanel: false });
   } else if (el.id === 'up-photo') {

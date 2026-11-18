@@ -298,3 +298,9 @@ th[draggable="true"] { cursor: grab; }
 th.dragging { opacity: .4; }
 th.drop-before { box-shadow: inset 3px 0 0 var(--accent); }
 th.drop-after { box-shadow: inset -3px 0 0 var(--accent); }
+
+/* ---------- Fecha límite con hora opcional ---------- */
+.p-val input[type="date"], .p-val input[type="time"] { border: none; outline: none; background: transparent; padding: 0; cursor: pointer; }
+.p-val input[type="date"].blank { color: var(--text-3); }
+.p-val input.due-time { margin-left: 10px; }
+.p-val #add-time, .p-val #clear-due { margin-left: 8px; }
