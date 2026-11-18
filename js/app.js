@@ -20,7 +20,7 @@ const STATUS = {
 const PRIORITY = {
   alta:  { label: 'Alta',  cls: 'c-red',    order: 0 },
   media: { label: 'Media', cls: 'c-yellow', order: 1 },
-  baja:  { label: 'Baja',  cls: 'c-gray',   order: 2 },
+  baja:  { label: 'Baja',  cls: 'c-green',  order: 2 },
 };
 
 /* ---------- Iconos (SVG mínimos estilo Notion) ---------- */
