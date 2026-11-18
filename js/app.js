@@ -11,9 +11,9 @@ const USERS = [
 const STATUS = {
   todo:    { label: 'No completada',       cls: 'c-red',    order: 0 },
   doing:   { label: 'En curso',            cls: 'c-blue',   order: 1 },
-  dep_int: { label: 'Dependencia interna', cls: 'c-purple', order: 2 },
-  dep_ext: { label: 'Dependencia externa', cls: 'c-orange', order: 3 },
-  dep_mix: { label: 'Dependencia mixta',   cls: 'c-pink',   order: 4 },
+  dep_int: { label: 'Dependencia interna', cls: 'c-gray',   order: 2 },
+  dep_ext: { label: 'Dependencia externa', cls: 'c-gray',   order: 3 },
+  dep_mix: { label: 'Dependencia mixta',   cls: 'c-gray',   order: 4 },
   done:    { label: 'Completada',          cls: 'c-green',  order: 5 },
 };
 

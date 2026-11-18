@@ -82,8 +82,8 @@ h1 { font-size: 40px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em
 .lane .new-card { color: var(--text-3); padding: 6px 6px; border-radius: 4px; cursor: pointer; font-size: 13px; margin-top: 4px; }
 .lane .new-card:hover { background: var(--hover); }
 .lane.drop { outline: 2px solid rgba(35,131,226,.5); outline-offset: -2px; }
-.lane.l-todo { background: #fdf5f4; } .lane.l-doing { background: #f4f8fb; } .lane.l-dep_int { background: #f8f5fa; }
-.lane.l-dep_ext { background: #fcf6f1; } .lane.l-dep_mix { background: #fbf4f8; } .lane.l-done { background: #f5f9f5; }
+.lane.l-todo { background: #fdf5f4; } .lane.l-doing { background: #f4f8fb; } .lane.l-dep_int { background: #f7f7f5; }
+.lane.l-dep_ext { background: #f7f7f5; } .lane.l-dep_mix { background: #f7f7f5; } .lane.l-done { background: #f5f9f5; }
 .db-bar .spacer { flex: 1; }
 .tool { display: flex; align-items: center; gap: 5px; color: var(--text-2); padding: 3px 8px; border-radius: 4px; border: none; background: none; cursor: pointer; }
 .tool:hover { background: var(--hover); }
