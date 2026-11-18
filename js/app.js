@@ -1,0 +1,747 @@
+/* ============================================================
+ *  Gestor de tareas — lógica de la interfaz
+ * ============================================================ */
+
+const USERS = [
+  { id: 'jorge', name: 'Jorge', color: '#2383e2' },
+  { id: 'francisco', name: 'Francisco', color: '#448361' },
+  { id: 'ulises', name: 'Ulises', color: '#9065b0' },
+];
+
+const STATUS = {
+  todo:    { label: 'No completada',       cls: 'c-red',    order: 0 },
+  doing:   { label: 'En curso',            cls: 'c-blue',   order: 1 },
+  dep_int: { label: 'Dependencia interna', cls: 'c-purple', order: 2 },
+  dep_ext: { label: 'Dependencia externa', cls: 'c-orange', order: 3 },
+  dep_mix: { label: 'Dependencia mixta',   cls: 'c-pink',   order: 4 },
+  done:    { label: 'Completada',          cls: 'c-green',  order: 5 },
+};
+
+const PRIORITY = {
+  alta:  { label: 'Alta',  cls: 'c-red',    order: 0 },
+  media: { label: 'Media', cls: 'c-yellow', order: 1 },
+  baja:  { label: 'Baja',  cls: 'c-gray',   order: 2 },
+};
+
+/* ---------- Iconos (SVG mínimos estilo Notion) ---------- */
+const P = {
+  id: 'M3 5.5h10v1.5H3zM3 9h10v1.5H3zM6 2l1.4.2-1.6 11.6L4.4 13.6zM10.2 2l1.4.2-1.6 11.6-1.4-.2z',
+  text: 'M2 3h12v1.6H2zM2 7.2h12v1.6H2zM2 11.4h8v1.6H2z',
+  status: 'M8 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zm0 1.5v10a5 5 0 0 0 0-10z',
+  select: 'M8 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zM5 7l3 3 3-3z',
+  person: 'M8 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6zm0 7.5c3 0 5.5 1.5 5.5 3.5V14h-11v-1c0-2 2.5-3.5 5.5-3.5z',
+  cal: 'M4 1h1.5v1.5h5V1H12v1.5h1.5A1.5 1.5 0 0 1 15 4v9.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 13.5V4a1.5 1.5 0 0 1 1.5-1.5H4zM2.5 6.5v7h11v-7z',
+  clock: 'M8 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zm0 1.5a5 5 0 1 0 0 10A5 5 0 0 0 8 3zm-.75 1.5h1.5v3.2l2.3 1.4-.8 1.3-3-1.8z',
+  rel: 'M9.5 2H14v4.5h-1.5V4.6L8.3 8.8 7.2 7.7l4.2-4.2H9.5zM2 4.5A1.5 1.5 0 0 1 3.5 3H7v1.5H3.5v8h8V9H13v3.5a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 2 12.5z',
+  doc: 'M4 1.5h5.5L13 5v9.5H4zM5.5 3v10h6V6H8.5V3z',
+  lock: 'M5 7V5a3 3 0 0 1 6 0v2h1v7H4V7zm1.5 0h3V5a1.5 1.5 0 0 0-3 0z',
+  eye: 'M8 3.5c3.5 0 6 3 6.5 4.5-.5 1.5-3 4.5-6.5 4.5S2 9.5 1.5 8C2 6.5 4.5 3.5 8 3.5zm0 2a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z',
+  trash: 'M6 1.5h4V3h3.5v1.5h-11V3H6zM3.5 5.5h9l-.7 9h-7.6z',
+  x: 'M4 3l4 4 4-4 1 1-4 4 4 4-1 1-4-4-4 4-1-1 4-4-4-4z',
+  plus: 'M7.25 2h1.5v5.25H14v1.5H8.75V14h-1.5V8.75H2v-1.5h5.25z',
+  table: 'M2 2.5h12v11H2zm1.5 1.5v2.5h9V4zm0 4v4h3.5V8zm5 0v4h4V8z',
+};
+const icon = (name) => `<svg class="i" viewBox="0 0 16 16"><path d="${P[name]}"/></svg>`;
+
+/* ---------- Columnas ---------- */
+const COLUMNS = [
+  { key: 'code',       label: 'ID',                icon: 'id',     hidden: true,  sort: (t) => t.id },
+  { key: 'title',      label: 'Tarea',             icon: 'text',   fixed: true,   sort: (t) => t.title || null },
+  { key: 'status',     label: 'Estado',            icon: 'status',                sort: (t) => STATUS[t.status].order },
+  { key: 'priority',   label: 'Prioridad',         icon: 'select',                sort: (t) => (t.priority ? PRIORITY[t.priority].order : null) },
+  { key: 'assignee',   label: 'Responsable',       icon: 'person',                sort: (t) => userName(t.assignee) },
+  { key: 'project',    label: 'Proyecto',          icon: 'select',                sort: (t) => t.project || null },
+  { key: 'due_at',     label: 'Fecha límite',      icon: 'cal',                   sort: (t) => t.due_at || null },
+  { key: 'depends_on', label: 'Depende de',        icon: 'rel',                   sort: (t) => t.depends_on.length || null },
+  { key: 'created_by', label: 'Creado por',        icon: 'person', hidden: true,  sort: (t) => userName(t.created_by) },
+  { key: 'created_at', label: 'Fecha de creación', icon: 'clock',  hidden: true,  sort: (t) => t.created_at },
+  { key: 'blocked_by', label: 'Bloqueado por',     icon: 'rel',    hidden: true,  sort: (t) => blockedBy(t).length || null },
+  { key: 'blocking',   label: 'Bloqueando',        icon: 'rel',    hidden: true,  sort: (t) => blocking(t).length || null },
+];
+
+/* ---------- Estado de la app ---------- */
+const state = {
+  tasks: [],
+  openId: null,
+  comments: [],
+  attachments: [],
+};
+
+const prefs = (() => {
+  try { return JSON.parse(localStorage.getItem('gt-prefs')) || {}; } catch { return {}; }
+})();
+prefs.user = prefs.user || 'jorge';
+prefs.sort = prefs.sort || { key: null, dir: null };
+prefs.view = prefs.view || 'table';
+prefs.hidden = prefs.hidden || COLUMNS.filter((c) => c.hidden).map((c) => c.key);
+function savePrefs() { try { localStorage.setItem('gt-prefs', JSON.stringify(prefs)); } catch {} }
+
+/* ---------- Utilidades ---------- */
+const $ = (sel, root = document) => root.querySelector(sel);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const code = (t) => String(t.id);
+const byId = (id) => state.tasks.find((t) => t.id === id);
+const user = (id) => USERS.find((u) => u.id === id);
+const userName = (id) => (user(id) ? user(id).name : null);
+const p2 = (n) => String(n).padStart(2, '0');
+function fmt(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}
+function fmtSize(b) {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 ** 2) return `${(b / 1024).toFixed(0)} KB`;
+  if (b < 1024 ** 3) return `${(b / 1024 ** 2).toFixed(1).replace('.', ',')} MB`;
+  return `${(b / 1024 ** 3).toFixed(2).replace('.', ',')} GB`;
+}
+const isOverdue = (t) => t.due_at && t.status !== 'done' && new Date(t.due_at) < new Date();
+function hashIdx(s, n) { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h % n; }
+
+const blockedBy = (t) => t.depends_on.map(byId).filter((x) => x && x.status !== 'done');
+const blocking = (t) => state.tasks.filter((x) => x.depends_on.includes(t.id));
+
+// ¿`a` depende (directa o indirectamente) de `target`?
+function dependsOn(a, targetId, seen = new Set()) {
+  if (seen.has(a.id)) return false;
+  seen.add(a.id);
+  return a.depends_on.some((id) => id === targetId || (byId(id) && dependsOn(byId(id), targetId, seen)));
+}
+
+/* ---------- Componentes HTML ---------- */
+const pill = (map, key) => (key && map[key]
+  ? `<span class="pill ${map[key].cls}"><span class="dot"></span>${map[key].label}</span>` : '');
+const avatar = (u) => `<span class="avatar" style="background:${u.color}">${u.name[0]}</span>`;
+const person = (id) => (user(id) ? `<span class="person">${avatar(user(id))}${esc(user(id).name)}</span>` : '');
+const projectTag = (p) => (p ? `<span class="tag t${hashIdx(p, 6)}">${esc(p)}</span>` : '');
+const depChip = (t, removable = false) =>
+  `<span class="dep ${t.status !== 'done' ? 'pending' : ''}" data-open="${t.id}" title="${esc(t.title)}">${code(t)}</span>` +
+  (removable ? `<button class="mini dep-x" data-remove-dep="${t.id}" title="Quitar">×</button>` : '');
+
+/* ============================================================
+ *  Regla automática de dependencias
+ *  - Cuando todas las tareas de las que depende X están completadas:
+ *      Dependencia interna → No completada
+ *      Dependencia mixta   → Dependencia externa (sigue esperando algo de afuera)
+ *  - Al agregar una dependencia sin completar:
+ *      No completada / En curso → Dependencia interna
+ *      Dependencia externa      → Dependencia mixta
+ * ============================================================ */
+async function releaseIfFree(t) {
+  if (!t || !['dep_int', 'dep_mix'].includes(t.status)) return;
+  if (blockedBy(t).length) return;
+  const next = t.status === 'dep_int' ? 'todo' : 'dep_ext';
+  t.status = next;
+  await Api.saveTask(t);
+  toast(`La tarea ${t.id} ya no espera otras tareas → ${STATUS[next].label}`);
+}
+async function onTaskCompleted(t) {
+  for (const dep of blocking(t)) await releaseIfFree(dep);
+}
+async function onDependencyAdded(t, depTask) {
+  if (depTask.status === 'done') return;
+  const map = { todo: 'dep_int', doing: 'dep_int', dep_ext: 'dep_mix' };
+  if (map[t.status]) {
+    t.status = map[t.status];
+    toast(`La tarea ${t.id} ahora espera a la ${depTask.id} → ${STATUS[t.status].label}`);
+  }
+}
+
+/* ============================================================
+ *  Tabla
+ * ============================================================ */
+function visibleColumns() {
+  return COLUMNS.filter((c) => c.fixed || !prefs.hidden.includes(c.key));
+}
+
+function sortedTasks() {
+  const list = [...state.tasks];
+  const { key, dir } = prefs.sort;
+  const col = COLUMNS.find((c) => c.key === key);
+  if (!col) return list.sort((a, b) => a.id - b.id);
+  return list.sort((a, b) => {
+    const va = col.sort(a), vb = col.sort(b);
+    const na = va === null || va === undefined || va === '';
+    const nb = vb === null || vb === undefined || vb === '';
+    if (na && nb) return a.id - b.id;
+    if (na) return 1; // vacíos siempre al final
+    if (nb) return -1;
+    let r = typeof va === 'string'
+      ? va.localeCompare(vb, 'es', { sensitivity: 'base', numeric: true })
+      : va < vb ? -1 : va > vb ? 1 : 0;
+    if (r === 0) return a.id - b.id;
+    return dir === 'desc' ? -r : r;
+  });
+}
+
+function cell(col, t) {
+  switch (col.key) {
+    case 'code': return `<td class="c-code">${code(t)}</td>`;
+    case 'title': {
+      const lock = blockedBy(t).length ? `<span class="lock" title="Bloqueada por la(s) tarea(s) ${blockedBy(t).map(code).join(', ')}">${icon('lock')}</span>` : '';
+      const title = t.title ? esc(t.title) : '<span class="untitled">Sin título</span>';
+      return `<td class="c-title"><div class="t">${title}${lock}<span class="open">ABRIR</span></div></td>`;
+    }
+    case 'status': return `<td>${pill(STATUS, t.status)}</td>`;
+    case 'priority': return `<td>${pill(PRIORITY, t.priority)}</td>`;
+    case 'assignee': return `<td>${person(t.assignee)}</td>`;
+    case 'project': return `<td>${projectTag(t.project)}</td>`;
+    case 'due_at': return `<td class="${isOverdue(t) ? 'overdue' : ''}">${fmt(t.due_at)}</td>`;
+    case 'depends_on': return `<td>${t.depends_on.map(byId).filter(Boolean).map((d) => depChip(d)).join('')}</td>`;
+    case 'created_by': return `<td>${person(t.created_by)}</td>`;
+    case 'created_at': return `<td>${fmt(t.created_at)}</td>`;
+    case 'blocked_by': return `<td>${blockedBy(t).map((d) => depChip(d)).join('')}</td>`;
+    case 'blocking': return `<td>${blocking(t).map((d) => depChip(d)).join('')}</td>`;
+  }
+}
+
+function renderTable() {
+  renderTableView();
+  renderBoard();
+  const v = prefs.view;
+  document.querySelectorAll('.view-tab').forEach((b) => b.classList.toggle('active', b.dataset.view === v));
+  $('#table-view').hidden = v !== 'table';
+  $('#board-view').hidden = v !== 'board';
+  $('#cols-tool').style.display = v === 'table' ? '' : 'none';
+}
+
+/* ---------- Tablero (Kanban) ---------- */
+function renderBoard() {
+  const list = sortedTasks();
+  $('#board-view').innerHTML = Object.entries(STATUS).map(([k, s]) => {
+    const items = list.filter((t) => t.status === k);
+    return `<div class="lane l-${k}" data-lane="${k}">
+      <div class="lane-h">${pill(STATUS, k)}<span class="n">${items.length}</span></div>
+      <div class="cards">${items.map((t) => `
+        <div class="card" draggable="true" data-open="${t.id}" data-card="${t.id}">
+          ${t.title ? esc(t.title) : '<span class="untitled">Sin título</span>'}
+          ${blockedBy(t).length ? `<span class="lock" title="Bloqueada por la(s) tarea(s) ${blockedBy(t).map(code).join(', ')}">${icon('lock')}</span>` : ''}
+        </div>`).join('')}</div>
+      <div class="new-card" data-new-in="${k}">＋ Nueva</div>
+    </div>`;
+  }).join('');
+}
+
+async function setStatus(t, status) {
+  if (t.status === status) return;
+  const becameDone = status === 'done';
+  t.status = status;
+  await Api.saveTask(t);
+  if (becameDone) { toast(`Tarea ${t.id} completada ✓`); await onTaskCompleted(t); }
+}
+
+function renderTableView() {
+  const cols = visibleColumns();
+  const { key, dir } = prefs.sort;
+  $('#thead').innerHTML = `<tr><th class="gutter"></th>${cols.map((c) => `
+    <th data-sort="${c.key}" class="${c.key === key ? 'sorted' : ''}">
+      <div class="h">${icon(c.icon)}${c.label}<span class="arrow">${c.key === key ? (dir === 'asc' ? '↑' : '↓') : ''}</span></div>
+    </th>`).join('')}</tr>`;
+  $('#rows').innerHTML = sortedTasks().map((t) =>
+    `<tr data-open="${t.id}"><td class="gutter"><button class="row-del" data-del-task="${t.id}" title="Eliminar tarea">${icon('trash')}</button></td>${cols.map((c) => cell(c, t)).join('')}</tr>`).join('');
+  $('#count').textContent = state.tasks.length;
+  $('#sort-tool').classList.toggle('on', !!key);
+  $('#sort-tool').innerHTML = key
+    ? `↕ ${COLUMNS.find((c) => c.key === key).label} ${dir === 'asc' ? '↑' : '↓'}`
+    : '↕ Ordenar';
+  $('#projects').innerHTML = [...new Set(state.tasks.map((t) => t.project).filter(Boolean))]
+    .sort().map((p) => `<option value="${esc(p)}">`).join('');
+}
+
+function cycleSort(key) {
+  const s = prefs.sort;
+  if (s.key !== key) prefs.sort = { key, dir: 'asc' };
+  else if (s.dir === 'asc') prefs.sort = { key, dir: 'desc' };
+  else prefs.sort = { key: null, dir: null };
+  savePrefs();
+  renderTable();
+}
+
+/* ============================================================
+ *  Panel de la tarea
+ * ============================================================ */
+const blobUrls = new Map();
+const urlFor = (a) => {
+  if (!blobUrls.has(a.id)) blobUrls.set(a.id, URL.createObjectURL(a.blob));
+  return blobUrls.get(a.id);
+};
+
+function extStyle(name) {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  const c = { pdf: '#e5534b', xls: '#2f8a4f', xlsx: '#2f8a4f', csv: '#2f8a4f', doc: '#2f6fd6', docx: '#2f6fd6',
+    ppt: '#d9730d', pptx: '#d9730d', zip: '#787774', rar: '#787774', mp4: '#9065b0', mov: '#9065b0', dwg: '#c14c8a' }[ext] || '#9b9a97';
+  return { label: (ext || 'file').slice(0, 4).toUpperCase(), color: c };
+}
+
+function prop(iconName, label, value, editable = false) {
+  return `<div class="p-label">${icon(iconName)}${label}</div><div class="p-val ${editable ? 'editable' : ''}">${value}</div>`;
+}
+
+function pickSelect(field, map, value, allowEmpty) {
+  const shown = value ? pill(map, value) : '<span class="empty">Vacío</span>';
+  const opts = (allowEmpty ? '<option value="">Vacío</option>' : '') +
+    Object.entries(map).map(([k, v]) => `<option value="${k}" ${k === value ? 'selected' : ''}>${v.label}</option>`).join('');
+  return `<span class="pick">${shown}<select data-field="${field}">${opts}</select></span>`;
+}
+function pickUser(value) {
+  const shown = value ? person(value) : '<span class="empty">Vacío</span>';
+  const opts = '<option value="">Vacío</option>' +
+    USERS.map((u) => `<option value="${u.id}" ${u.id === value ? 'selected' : ''}>${u.name}</option>`).join('');
+  return `<span class="pick">${shown}<select data-field="assignee">${opts}</select></span>`;
+}
+
+function renderPanel() {
+  const t = byId(state.openId);
+  if (!t) return;
+  const overlay = $('#overlay');
+  const scroll = overlay.scrollTop;
+  const deps = t.depends_on.map(byId).filter(Boolean);
+  const photos = state.attachments.filter((a) => a.kind === 'photo');
+  const files = state.attachments.filter((a) => a.kind === 'file');
+  const me = user(prefs.user);
+
+  $('#modal-body').innerHTML = `
+    <div class="m-code">ID ${code(t)}</div>
+    <textarea class="m-title" id="f-title" rows="1" placeholder="Sin título"></textarea>
+
+    <div class="props">
+      ${prop('id', 'ID', `<span class="ro">${code(t)}</span>`)}
+      ${prop('person', 'Creado por', person(t.created_by))}
+      ${prop('rel', 'Depende de', deps.map((d) => depChip(d, true)).join('') +
+        `<button class="mini add-dep" id="add-dep">${deps.length ? '+' : 'Vacío'}</button>`, true)}
+      ${prop('cal', 'Fecha límite', `<input type="datetime-local" id="f-due" class="${t.due_at ? '' : 'blank'}">` +
+        (t.due_at ? '<button class="mini" id="clear-due" title="Quitar fecha">×</button>' : ''), true)}
+      ${prop('select', 'Prioridad', pickSelect('priority', PRIORITY, t.priority, true), true)}
+      ${prop('select', 'Proyecto', '<input class="plain" id="f-project" list="projects" placeholder="Vacío" autocomplete="off">', true)}
+      ${prop('person', 'Responsable', pickUser(t.assignee), true)}
+      ${prop('clock', 'Fecha de creación', `<span class="ro">${fmt(t.created_at)}</span>`)}
+      ${prop('rel', 'Bloqueado por', blockedBy(t).map((d) => depChip(d)).join('') || '<span class="empty">Vacío</span>')}
+      ${prop('rel', 'Bloqueando', blocking(t).map((d) => depChip(d)).join('') || '<span class="empty">Vacío</span>')}
+      ${prop('status', 'Estado', pickSelect('status', STATUS, t.status, false), true)}
+    </div>
+
+    <div class="section-h">Comentarios</div>
+    <div class="comments">
+      ${state.comments.map((c) => `
+        <div class="comment">${avatar(user(c.author))}
+          <div><div><span class="who">${esc(userName(c.author))}</span><span class="when">${fmt(c.created_at)}</span></div>
+          <div class="body">${esc(c.body)}</div></div>
+        </div>`).join('')}
+    </div>
+    <div class="comment-new">${avatar(me)}<input id="f-comment" placeholder="Agregar un comentario… (Enter para enviar)"></div>
+
+    <div class="divider"></div>
+    <textarea class="desc" id="f-desc" placeholder="Escribe aquí los detalles de la tarea…"></textarea>
+
+    <div class="section-h">Fotos
+      <label class="add">+ Agregar fotos<input type="file" id="up-photo" accept="image/*" multiple hidden></label>
+    </div>
+    ${photos.length ? `<div class="gallery">${photos.map((a) => `
+      <div class="photo" data-photo="${a.id}"><img src="${urlFor(a)}" alt="${esc(a.name)}">
+        <button class="x" data-del-att="${a.id}" title="Eliminar">×</button></div>`).join('')}</div>`
+      : '<div class="nothing">Sin fotos</div>'}
+
+    <div class="section-h">Archivos adjuntos
+      <label class="add">+ Adjuntar archivos<input type="file" id="up-file" multiple hidden></label>
+    </div>
+    ${files.length ? `<div class="files">${files.map((a) => {
+      const e = extStyle(a.name);
+      return `<a class="file" href="${urlFor(a)}" download="${esc(a.name)}" title="Descargar">
+        <div class="ext" style="background:${e.color}">${e.label}</div>
+        <div class="name">${esc(a.name)}</div>
+        <div class="meta">${fmtSize(a.size)} · ${esc(userName(a.uploaded_by) || '')}</div>
+        <button class="x" data-del-att="${a.id}" title="Eliminar">×</button></a>`;
+    }).join('')}</div>` : '<div class="nothing">Sin archivos</div>'}
+
+    <div class="hint">También puedes arrastrar fotos y archivos a este panel.</div>
+  `;
+
+  // Valores de texto (se asignan por JS para no tener problemas con caracteres especiales)
+  $('#f-title').value = t.title;
+  $('#f-desc').value = t.description;
+  $('#f-project').value = t.project || '';
+  $('#f-due').value = t.due_at || '';
+  autoGrow($('#f-title'));
+  autoGrow($('#f-desc'));
+  overlay.scrollTop = scroll;
+}
+
+function autoGrow(el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; }
+
+async function openTask(id) {
+  if (state.openId !== id) {
+    closePopover();
+    revokeUrls();
+  }
+  state.openId = id;
+  [state.comments, state.attachments] = await Promise.all([Api.listComments(id), Api.listAttachments(id)]);
+  state.comments.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id);
+  const wasOpen = $('#overlay').classList.contains('open');
+  $('#overlay').classList.add('open');
+  renderPanel();
+  if (!wasOpen) $('#overlay').scrollTop = 0;
+  resetDeleteBtn();
+}
+
+function closeTask() {
+  $('#overlay').classList.remove('open');
+  closePopover();
+  state.openId = null;
+  revokeUrls();
+}
+function revokeUrls() { blobUrls.forEach((u) => URL.revokeObjectURL(u)); blobUrls.clear(); }
+
+async function updateTask(patch, { rerenderPanel = true } = {}) {
+  const t = byId(state.openId);
+  const { status, ...rest } = patch;
+  Object.assign(t, rest);
+  await Api.saveTask(t);
+  if (status !== undefined) await setStatus(t, status);
+  renderTable();
+  if (rerenderPanel) renderPanel();
+}
+
+/* ---------- Adjuntos ---------- */
+async function addFiles(fileList, forceKind) {
+  const t = byId(state.openId);
+  if (!t || !fileList.length) return;
+  for (const f of fileList) {
+    const kind = forceKind || (f.type.startsWith('image/') ? 'photo' : 'file');
+    await Api.addAttachment(t.id, f, kind, prefs.user);
+  }
+  state.attachments = await Api.listAttachments(t.id);
+  renderPanel();
+  toast(fileList.length === 1 ? 'Archivo agregado' : `${fileList.length} archivos agregados`);
+}
+
+/* ---------- Popover (dependencias y propiedades visibles) ---------- */
+const pop = () => $('#popover');
+function openPopover(anchor, html) {
+  const el = pop();
+  el.innerHTML = html;
+  el.classList.add('open');
+  const r = anchor.getBoundingClientRect();
+  const w = el.offsetWidth, h = el.offsetHeight;
+  el.style.left = `${Math.max(8, Math.min(r.left, innerWidth - w - 8))}px`;
+  el.style.top = `${r.bottom + h + 8 > innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4}px`;
+}
+function closePopover() { pop().classList.remove('open'); pop().dataset.kind = ''; }
+
+function openDepPicker(anchor) {
+  const t = byId(state.openId);
+  const candidates = () => state.tasks
+    .filter((x) => x.id !== t.id && !t.depends_on.includes(x.id) && !dependsOn(x, t.id))
+    .sort((a, b) => a.id - b.id);
+  const list = (q) => {
+    const items = candidates().filter((x) => `${code(x)} ${x.title}`.toLowerCase().includes(q.toLowerCase()));
+    return items.length ? items.map((x) => `
+      <div class="opt" data-add-dep="${x.id}"><span class="code">${code(x)}</span><span class="ttl">${esc(x.title || 'Sin título')}</span>
+      <span style="margin-left:auto">${pill(STATUS, x.status)}</span></div>`).join('')
+      : '<div class="title">No hay tareas disponibles</div>';
+  };
+  openPopover(anchor, `<div class="title">Esta tarea depende de…</div>
+    <input class="search" id="dep-search" placeholder="Buscar tarea">
+    <div class="opts" id="dep-opts">${list('')}</div>`);
+  pop().dataset.kind = 'deps';
+  pop().style.minWidth = '380px';
+  const s = $('#dep-search');
+  s.focus();
+  s.oninput = () => { $('#dep-opts').innerHTML = list(s.value); };
+}
+
+function openColumnsMenu(anchor) {
+  const render = () => `<div class="title">Propiedades visibles en la tabla</div>` +
+    COLUMNS.filter((c) => !c.fixed).map((c) => `
+      <div class="opt" data-toggle-col="${c.key}">${icon(c.icon)}${c.label}
+        <span class="switch ${prefs.hidden.includes(c.key) ? '' : 'on'}"></span></div>`).join('');
+  openPopover(anchor, render());
+  pop().dataset.kind = 'cols';
+  pop().style.minWidth = '260px';
+}
+
+/* ---------- Toast ---------- */
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  $('#toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+/* ---------- Eliminar tarea (confirmación en dos clics) ---------- */
+let deleteArmed = false;
+function resetDeleteBtn() {
+  deleteArmed = false;
+  $('#delete-task').innerHTML = `${icon('trash')}`;
+  $('#delete-task').classList.remove('danger');
+}
+
+async function deleteTask(id) {
+  const t = byId(id);
+  const dependents = blocking(t);
+  await Api.deleteTask(id);
+  state.tasks = await Api.listTasks();
+  for (const d of dependents) await releaseIfFree(byId(d.id));
+  if (state.openId === id) closeTask();
+  renderTable();
+  toast(`Tarea ${t.id} eliminada`);
+}
+
+/* ---------- Usuario actual ---------- */
+function renderUsers() {
+  $('#users').innerHTML = USERS.map((u) => `
+    <button class="user-btn ${u.id === prefs.user ? 'active' : ''}" data-user="${u.id}">
+      ${avatar(u)}${u.name}${u.id === prefs.user ? '<span class="check">✓</span>' : ''}
+    </button>`).join('');
+}
+
+/* ============================================================
+ *  Eventos
+ * ============================================================ */
+let titleTimer, descTimer;
+
+document.addEventListener('click', async (e) => {
+  const target = e.target;
+
+  // Popover: clics dentro
+  const depOpt = target.closest('[data-add-dep]');
+  if (depOpt) {
+    const t = byId(state.openId);
+    const dep = byId(Number(depOpt.dataset.addDep));
+    t.depends_on = [...t.depends_on, dep.id];
+    await onDependencyAdded(t, dep);
+    await Api.saveTask(t);
+    closePopover();
+    renderTable(); renderPanel();
+    return;
+  }
+  const colOpt = target.closest('[data-toggle-col]');
+  if (colOpt) {
+    const k = colOpt.dataset.toggleCol;
+    prefs.hidden = prefs.hidden.includes(k) ? prefs.hidden.filter((x) => x !== k) : [...prefs.hidden, k];
+    savePrefs();
+    colOpt.querySelector('.switch').classList.toggle('on');
+    renderTable();
+    return;
+  }
+  if (pop().contains(target)) return;
+  if (pop().classList.contains('open') && !target.closest('#add-dep, #cols-tool')) { closePopover(); }
+
+  // Borrar adjunto (antes que el enlace de descarga)
+  const delAtt = target.closest('[data-del-att]');
+  if (delAtt) {
+    e.preventDefault(); e.stopPropagation();
+    await Api.deleteAttachment(Number(delAtt.dataset.delAtt));
+    const u = blobUrls.get(Number(delAtt.dataset.delAtt));
+    if (u) { URL.revokeObjectURL(u); blobUrls.delete(Number(delAtt.dataset.delAtt)); }
+    state.attachments = await Api.listAttachments(state.openId);
+    renderPanel();
+    return;
+  }
+
+  // Quitar dependencia
+  const rm = target.closest('[data-remove-dep]');
+  if (rm) {
+    const t = byId(state.openId);
+    t.depends_on = t.depends_on.filter((x) => x !== Number(rm.dataset.removeDep));
+    await Api.saveTask(t);
+    await releaseIfFree(t);
+    renderTable(); renderPanel();
+    return;
+  }
+
+  if (target.closest('#add-dep')) { openDepPicker(target.closest('#add-dep')); return; }
+  if (target.closest('#cols-tool')) { openColumnsMenu(target.closest('#cols-tool')); return; }
+  if (target.closest('#sort-tool')) { prefs.sort = { key: null, dir: null }; savePrefs(); renderTable(); return; }
+
+  // Ver foto en grande
+  const ph = target.closest('[data-photo]');
+  if (ph) {
+    const a = state.attachments.find((x) => x.id === Number(ph.dataset.photo));
+    $('#lightbox img').src = urlFor(a);
+    $('#lightbox .cap').textContent = a.name;
+    $('#lightbox').classList.add('open');
+    return;
+  }
+  if (target.closest('#lightbox')) { $('#lightbox').classList.remove('open'); return; }
+
+  // Basurero de la fila (dos clics para confirmar)
+  const rowDel = target.closest('[data-del-task]');
+  if (rowDel) {
+    if (!rowDel.classList.contains('armed')) {
+      document.querySelectorAll('.row-del.armed').forEach((b) => b.classList.remove('armed'));
+      rowDel.classList.add('armed');
+      rowDel.title = 'Clic de nuevo para eliminar';
+      return;
+    }
+    await deleteTask(Number(rowDel.dataset.delTask));
+    return;
+  }
+
+  // Abrir tarea (fila o chip de dependencia)
+  const open = target.closest('[data-open]');
+  if (open) { openTask(Number(open.dataset.open)); return; }
+
+  // Ordenar por columna
+  const th = target.closest('th[data-sort]');
+  if (th) { cycleSort(th.dataset.sort); return; }
+
+  // Cambiar de vista
+  const vt = target.closest('[data-view]');
+  if (vt) { prefs.view = vt.dataset.view; savePrefs(); renderTable(); return; }
+
+  // Nueva tarea
+  const lane = target.closest('[data-new-in]');
+  if (target.closest('#new-task, #add-row') || lane) {
+    const t = await Api.createTask({ created_by: prefs.user, assignee: prefs.user, status: lane ? lane.dataset.newIn : 'todo' });
+    state.tasks.push(t);
+    renderTable();
+    await openTask(t.id);
+    $('#f-title').focus();
+    return;
+  }
+
+  // Eliminar tarea
+  if (target.closest('#delete-task')) {
+    if (!deleteArmed) {
+      deleteArmed = true;
+      $('#delete-task').innerHTML = `${icon('trash')} ¿Eliminar? Clic de nuevo`;
+      $('#delete-task').classList.add('danger');
+      return;
+    }
+    await deleteTask(state.openId);
+    return;
+  }
+
+  // Cambiar usuario
+  const ub = target.closest('[data-user]');
+  if (ub) { prefs.user = ub.dataset.user; savePrefs(); renderUsers(); if (state.openId) renderPanel(); return; }
+
+  // Restablecer datos
+  if (target.closest('#reset')) {
+    const btn = $('#reset');
+    if (!btn.classList.contains('armed')) {
+      btn.classList.add('armed');
+      btn.textContent = '¿Seguro? Se borra todo. Clic de nuevo';
+      setTimeout(() => { btn.classList.remove('armed'); btn.textContent = 'Restablecer datos de ejemplo'; }, 4000);
+      return;
+    }
+    await Api.resetAll(SEED);
+    state.tasks = await Api.listTasks();
+    btn.classList.remove('armed'); btn.textContent = 'Restablecer datos de ejemplo';
+    closeTask(); renderTable(); toast('Datos de ejemplo restablecidos');
+    return;
+  }
+
+  // Cerrar panel
+  if (target.id === 'overlay' || target.closest('#close')) { closeTask(); }
+});
+
+document.addEventListener('change', async (e) => {
+  const el = e.target;
+  if (el.matches('select[data-field]')) {
+    await updateTask({ [el.dataset.field]: el.value || null });
+  } else if (el.id === 'f-due') {
+    await updateTask({ due_at: el.value || null });
+  } else if (el.id === 'f-project') {
+    await updateTask({ project: el.value.trim() || null }, { rerenderPanel: false });
+  } else if (el.id === 'up-photo') {
+    await addFiles([...el.files], 'photo');
+  } else if (el.id === 'up-file') {
+    await addFiles([...el.files], 'file');
+  }
+});
+
+document.addEventListener('input', (e) => {
+  const el = e.target;
+  if (el.id === 'f-title') {
+    autoGrow(el);
+    byId(state.openId).title = el.value;
+    clearTimeout(titleTimer);
+    titleTimer = setTimeout(async () => { await Api.saveTask(byId(state.openId)); renderTable(); }, 250);
+  } else if (el.id === 'f-desc') {
+    autoGrow(el);
+    byId(state.openId).description = el.value;
+    clearTimeout(descTimer);
+    const id = state.openId;
+    descTimer = setTimeout(() => Api.saveTask(byId(id)), 400);
+  }
+});
+
+document.addEventListener('keydown', async (e) => {
+  if (e.key === 'Escape') {
+    if ($('#lightbox').classList.contains('open')) return $('#lightbox').classList.remove('open');
+    if (pop().classList.contains('open')) return closePopover();
+    if (state.openId) return closeTask();
+  }
+  if (e.target.id === 'f-title' && e.key === 'Enter') { e.preventDefault(); $('#f-desc').focus(); }
+  if (e.target.id === 'f-comment' && e.key === 'Enter' && e.target.value.trim()) {
+    await Api.addComment(state.openId, prefs.user, e.target.value.trim());
+    state.comments = await Api.listComments(state.openId);
+    renderPanel();
+    $('#f-comment').focus();
+  }
+});
+
+// Arrastrar y soltar archivos en el panel
+const modal = $('#modal');
+let dragDepth = 0;
+modal.addEventListener('dragenter', (e) => { if (e.dataTransfer.types.includes('Files')) { dragDepth++; modal.classList.add('dragging'); } });
+modal.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; modal.classList.remove('dragging'); } });
+modal.addEventListener('dragover', (e) => e.preventDefault());
+modal.addEventListener('drop', (e) => {
+  e.preventDefault(); dragDepth = 0; modal.classList.remove('dragging');
+  addFiles([...e.dataTransfer.files]);
+});
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => e.preventDefault());
+
+// Si el mouse sale de la fila, el basurero vuelve a su estado normal
+$('#rows').addEventListener('mouseout', (e) => {
+  const tr = e.target.closest('tr');
+  if (tr && !tr.contains(e.relatedTarget)) {
+    const b = tr.querySelector('.row-del.armed');
+    if (b) { b.classList.remove('armed'); b.title = 'Eliminar tarea'; }
+  }
+});
+
+// Arrastrar tarjetas entre columnas del tablero
+const board = $('#board-view');
+board.addEventListener('dragstart', (e) => {
+  const c = e.target.closest('[data-card]');
+  if (!c) return;
+  e.dataTransfer.setData('text/x-task', c.dataset.card);
+  e.dataTransfer.effectAllowed = 'move';
+  c.classList.add('dragging');
+});
+board.addEventListener('dragend', () => {
+  board.querySelectorAll('.dragging, .drop').forEach((el) => el.classList.remove('dragging', 'drop'));
+});
+board.addEventListener('dragover', (e) => {
+  const l = e.target.closest('[data-lane]');
+  if (!l || !e.dataTransfer.types.includes('text/x-task')) return;
+  e.preventDefault();
+  board.querySelectorAll('.drop').forEach((el) => el !== l && el.classList.remove('drop'));
+  l.classList.add('drop');
+});
+board.addEventListener('drop', async (e) => {
+  const l = e.target.closest('[data-lane]');
+  const id = Number(e.dataTransfer.getData('text/x-task'));
+  if (!l || !id) return;
+  e.preventDefault();
+  await setStatus(byId(id), l.dataset.lane);
+  renderTable();
+});
+
+/* ---------- Inicio ---------- */
+(async () => {
+  try {
+    await Api.ensureSeed(SEED);
+    state.tasks = await Api.listTasks();
+  } catch (err) {
+    document.body.innerHTML = `<p style="padding:40px">No se pudo abrir la base de datos local: ${esc(err.message)}</p>`;
+    return;
+  }
+  renderUsers();
+  renderTable();
+})();

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestor de tareas</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="ws"><span class="ws-icon">E</span>Espacio de la empresa</div>
+  <div class="side-label">Espacio de trabajo</div>
+  <div class="side-item active">✅ Gestor de tareas</div>
+  <div class="side-spacer"></div>
+  <div class="user-switch">
+    <div class="lbl">Usando la app como</div>
+    <div class="users" id="users"></div>
+    <button class="reset" id="reset">Restablecer datos de ejemplo</button>
+  </div>
+</aside>
+
+<main>
+  <div class="page">
+    <div class="page-icon">✅</div>
+    <h1>Gestor de tareas</h1>
+    <p class="page-desc">Todos los pendientes de la empresa en un solo lugar. Si no está aquí, no existe.</p>
+
+    <div class="db-bar">
+      <button class="view-tab" data-view="table">▦ Tabla</button>
+      <button class="view-tab" data-view="board">▥ Tablero</button>
+      <div class="spacer"></div>
+      <button class="tool" id="sort-tool" title="Quitar orden">↕ Ordenar</button>
+      <button class="tool" id="cols-tool">◉ Propiedades</button>
+      <button class="btn-new" id="new-task">Nueva</button>
+    </div>
+
+    <section id="table-view">
+      <div class="table-wrap">
+        <table>
+          <thead id="thead"></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="add-row" id="add-row">＋ Nueva tarea</div>
+      <div class="count">CONTAR&nbsp;&nbsp;<span id="count"></span></div>
+    </section>
+
+    <section id="board-view" class="board" hidden></section>
+  </div>
+</main>
+
+<datalist id="projects"></datalist>
+
+<!-- Panel central de la tarea -->
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal" role="dialog" aria-modal="true">
+    <div class="modal-bar">
+      <button class="icon-btn" id="close" title="Cerrar (Esc)">✕</button>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="delete-task" title="Eliminar tarea"></button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<div class="popover" id="popover"></div>
+<div class="lightbox" id="lightbox"><img alt=""><div class="cap"></div></div>
+<div class="toasts" id="toasts"></div>
+
+<script src="js/db.js"></script>
+<script src="js/seed.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
