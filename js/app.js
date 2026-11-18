@@ -417,7 +417,7 @@ function openHeaderMenu(anchor, key) {
   const nFilter = (prefs.filters[key] || []).length;
   openPopover(anchor, `
     <div class="title">${col.label}</div>
-    <div class="opt" data-hm-sort="${key}">${SORT_ICON}Ordenar ${sortLabel}</div>
+    <div class="opt" data-hm-sort="${key}">${SORT_ICON}${s.key === key ? 'Invertir orden' : 'Ordenar'} ${sortLabel}</div>
     ${FILTERS[key] ? `<div class="opt" data-hm-filter="${key}">${FUNNEL_ICON}Filtro ${nFilter ? `<span class="hint-r">${nFilter} seleccionado${nFilter > 1 ? 's' : ''}</span>` : ''}</div>` : ''}
     ${s.key === key ? '<div class="opt muted-opt" data-hm-unsort>✕&nbsp; Quitar orden</div>' : ''}`);
   pop().dataset.kind = 'head';
