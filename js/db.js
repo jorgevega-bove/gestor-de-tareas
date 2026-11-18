@@ -172,7 +172,11 @@ const History = {
 
 const projName = async (id) => ((await LocalDB.get('projects', id)) || {}).name || null;
 
-const Api = {
+// `let` (no `const`) para que js/db.supabase.js pueda reemplazarla en modo compartido
+let Api = {
+  mode: 'local',
+  supportsUndo: true,
+
   // ---------- Respaldo ----------
   async exportAll() {
     const out = { app: BACKUP_APP, version: 1, exported_at: nowISO() };

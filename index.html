@@ -104,7 +104,15 @@
 <div class="sel-bar" id="sel-bar" hidden></div>
 <div class="toasts" id="toasts"></div>
 
+<script src="js/config.js"></script>
 <script src="js/db.js"></script>
+<script>
+  // Modo compartido: si config.js tiene los datos de Supabase, se cargan su librería y la capa de datos compartida
+  if (window.APP_CONFIG && APP_CONFIG.supabaseUrl && APP_CONFIG.supabaseAnonKey) {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>');
+    document.write('<script src="js/db.supabase.js"><\/script>');
+  }
+</script>
 <script src="js/seed.js"></script>
 <script src="js/app.js"></script>
 </body>
