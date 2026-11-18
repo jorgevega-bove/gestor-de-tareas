@@ -441,13 +441,7 @@ function renderPanel() {
       ${prop('person', 'Creado por', person(t.created_by))}
       ${prop('rel', 'Depende de', deps.map((d) => depChip(d, true)).join('') +
         `<button class="mini add-dep" id="add-dep">${deps.length ? '+' : 'Vacío'}</button>`, true)}
-      ${prop('cal', 'Fecha límite', `<input type="date" id="f-due-date" class="${t.due_at ? '' : 'blank'}">` +
-        (t.due_at
-          ? (hasTime(t.due_at) || state.addingTime
-              ? '<input type="time" id="f-due-time" class="due-time"><button class="mini" id="clear-time" title="Quitar hora">× hora</button>'
-              : '<button class="mini" id="add-time">+ Agregar hora</button>') +
-            '<button class="mini" id="clear-due" title="Quitar fecha">Quitar fecha</button>'
-          : ''), true)}
+      ${prop('cal', 'Fecha límite', `<button class="pick-btn ${isOverdue(t) ? 'overdue' : ''}" id="pick-due">${t.due_at ? fmtDue(t.due_at) : '<span class="empty">Sin definir</span>'}</button>`, true)}
       ${prop('select', 'Prioridad', pickSelect('priority', PRIORITY, t.priority, true), true)}
       ${prop('select', 'Proyecto', `<button class="pick-btn" id="pick-project">${projectTag(t.project_id) || EMPTY}</button>`, true)}
       ${prop('person', 'Responsable', pickUsers(t.assignees), true)}
@@ -487,8 +481,6 @@ function renderPanel() {
   // Valores de texto (se asignan por JS para no tener problemas con caracteres especiales)
   $('#f-title').value = t.title;
   $('#f-desc').value = t.description;
-  $('#f-due-date').value = t.due_at ? t.due_at.split('T')[0] : '';
-  if ($('#f-due-time')) $('#f-due-time').value = hasTime(t.due_at) ? t.due_at.split('T')[1] : '';
   autoGrow($('#f-title'));
   autoGrow($('#f-desc'));
   overlay.scrollTop = scroll;
@@ -635,26 +627,53 @@ function openCellSelect(anchor, taskId, field) {
   }
 }
 
+/* ---------- Selector de fecha límite: fecha arriba, hora abajo ---------- */
 function openCellDate(anchor, taskId) {
-  const t = byId(taskId);
-  openPopover(anchor, `<div class="title">Fecha límite</div>
-    <div class="date-pop"><input type="date" id="pd-date"><input type="time" id="pd-time" title="Hora (opcional)"></div>
-    <div class="date-hint">La hora es opcional</div>
-    <div id="pd-foot">${t.due_at ? '<div class="opt muted-opt" data-pd-clear>✕&nbsp; Quitar fecha</div>' : ''}</div>`);
+  openPopover(anchor, '<div class="title">Fecha límite</div><div id="pd-body"></div>');
   Object.assign(pop().dataset, { kind: 'date', task: taskId });
   pop().style.minWidth = '260px';
-  $('#pd-date').value = t.due_at ? t.due_at.split('T')[0] : '';
-  $('#pd-time').value = hasTime(t.due_at) ? t.due_at.split('T')[1] : '';
-  $('#pd-date').focus();
+  renderDatePop();
+}
+
+function renderDatePop() {
+  const t = popTask();
+  const date = t.due_at ? t.due_at.split('T')[0] : '';
+  const time = hasTime(t.due_at) ? t.due_at.split('T')[1] : '';
+  const row = (ico, kind, value, enabled, label) => `
+    <div class="dp-row ${enabled ? '' : 'disabled'}">
+      <span class="dp-ico">${icon(ico)}</span>
+      ${value
+        ? `<input type="${kind}" id="pd-${kind}" value="${value}">
+           <button class="dp-x" data-pd-clear="${kind}" title="Quitar ${label}">×</button>`
+        : `<button class="dp-undef" data-pd-set="${kind}" ${enabled ? '' : 'disabled title="Primero define una fecha"'}>Sin definir</button>`}
+    </div>`;
+  $('#pd-body').innerHTML = row('cal', 'date', date, true, 'fecha') + row('clock', 'time', time, !!date, 'hora');
+}
+
+// Muestra el campo y abre el selector nativo del navegador
+function startDateInput(kind) {
+  const btn = pop().querySelector(`[data-pd-set="${kind}"]`);
+  const inp = document.createElement('input');
+  inp.type = kind;
+  inp.id = `pd-${kind}`;
+  btn.replaceWith(inp);
+  inp.focus();
+  try { inp.showPicker(); } catch {}
+  inp.addEventListener('blur', () => setTimeout(() => {
+    if (pop().dataset.kind === 'date' && !inp.value && document.activeElement !== inp) renderDatePop();
+  }, 150));
 }
 
 async function saveCellDate() {
   const t = popTask();
-  const d = $('#pd-date').value, tm = $('#pd-time').value;
+  const d = $('#pd-date') ? $('#pd-date').value : '';
+  const tm = $('#pd-time') ? $('#pd-time').value : (hasTime(t.due_at) ? t.due_at.split('T')[1] : '');
+  const before = [!!t.due_at, hasTime(t.due_at)];
   t.due_at = d ? d + (tm ? `T${tm}` : '') : null;
   await Api.saveTask(t);
-  $('#pd-foot').innerHTML = t.due_at ? '<div class="opt muted-opt" data-pd-clear>✕&nbsp; Quitar fecha</div>' : '';
   refreshTask(t.id);
+  // Solo se redibuja si cambia qué filas tienen valor (así no se interrumpe la escritura)
+  if (before[0] !== !!t.due_at || before[1] !== hasTime(t.due_at)) renderDatePop();
 }
 
 function editTitle(td, taskId) {
@@ -821,12 +840,18 @@ document.addEventListener('click', async (e) => {
     refreshTask(t.id);
     return;
   }
-  if (target.closest('[data-pd-clear]')) {
+  const pdc = target.closest('[data-pd-clear]');
+  if (pdc) {
     const t = popTask();
-    t.due_at = null; await Api.saveTask(t);
-    closePopover(); refreshTask(t.id);
+    // Sin fecha no puede haber hora: quitar la fecha borra ambas
+    t.due_at = pdc.dataset.pdClear === 'date' ? null : t.due_at.split('T')[0];
+    await Api.saveTask(t);
+    refreshTask(t.id);
+    renderDatePop();
     return;
   }
+  const pds = target.closest('[data-pd-set]');
+  if (pds) { if (!pds.disabled) startDateInput(pds.dataset.pdSet); return; }
   const prd = target.closest('[data-pop-rm-dep]');
   if (prd) {
     const t = popTask();
@@ -915,7 +940,7 @@ document.addEventListener('click', async (e) => {
   }
   if (target.closest('[data-hm-unsort]')) { closePopover(); prefs.sort = { key: null, dir: null }; savePrefs(); renderTable(); return; }
   if (pop().contains(target)) return;
-  if (pop().classList.contains('open') && !target.closest('#add-dep, #cols-tool, #add-user, #pick-project')) { closePopover(); }
+  if (pop().classList.contains('open') && !target.closest('#add-dep, #cols-tool, #add-user, #pick-project, #pick-due')) { closePopover(); }
 
   // Borrar adjunto (antes que el enlace de descarga)
   const delAtt = target.closest('[data-del-att]');
@@ -948,6 +973,7 @@ document.addEventListener('click', async (e) => {
   }
   if (target.closest('#clear-due')) { state.addingTime = false; await updateTask({ due_at: null }); return; }
   if (target.closest('#add-user')) { openUsersMenu(target.closest('#add-user')); return; }
+  if (target.closest('#pick-due')) { openCellDate(target.closest('#pick-due'), state.openId); return; }
   if (target.closest('#pick-project')) { openCellSelect(target.closest('#pick-project'), state.openId, 'project_id'); return; }
   const rmUser = target.closest('[data-remove-user]');
   if (rmUser) {
