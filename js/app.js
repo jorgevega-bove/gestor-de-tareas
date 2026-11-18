@@ -1121,6 +1121,12 @@ document.addEventListener('click', async (e) => {
     renderDatePop();
     return;
   }
+  // Sin el ícono nativo, el selector se abre al hacer clic en el campo o en su ícono de la izquierda
+  const dpRow = target.closest('.dp-row');
+  if (dpRow && !target.closest('[data-pd-clear], [data-pd-set]')) {
+    const inp = dpRow.querySelector('input');
+    if (inp) { try { inp.showPicker(); } catch {} return; }
+  }
   const pds = target.closest('[data-pd-set]');
   if (pds) { if (!pds.disabled) startDateInput(pds.dataset.pdSet); return; }
   const prd = target.closest('[data-pop-rm-dep]');
