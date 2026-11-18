@@ -6,7 +6,7 @@
  * las mismas funciones contra Supabase, y el resto de la app no cambia.
  *
  * Modelo de datos (pensado para que calce con tablas de Supabase):
- *   people      { id, name, created_at }   (personas que pueden ser responsables)
+ *   people      { id, name, created_at, deleted }   (personas que pueden ser responsables)
  *   activity    { id, ts, at, user, entity, entity_id, entity_name, action, field, from, to, extra }  (bitácora)
  *   projects    { id, name, position, archived, created_at }
  *   tasks       { id, project_id, position, title, description, status, priority, project, assignees: [ids],
@@ -276,6 +276,30 @@ const Api = {
     await LocalDB.put('people', person);
     await logActivity({ entity: 'person', entity_id: id, entity_name: name, action: 'create' });
     return person;
+  },
+
+  async renamePerson(id, name) {
+    await History.before();
+    const p = await LocalDB.get('people', id);
+    const before = p.name;
+    p.name = name;
+    await LocalDB.put('people', p);
+    await logActivity({ entity: 'person', entity_id: id, entity_name: name, action: 'rename', from: before, to: name });
+  },
+  // La persona se marca como eliminada (no se borra) para que la bitácora, los comentarios
+  // y "Creado por" sigan mostrando su nombre. Se quita como responsable de todas las tareas.
+  async deletePerson(id) {
+    await History.before();
+    const p = await LocalDB.get('people', id);
+    p.deleted = true;
+    await LocalDB.put('people', p);
+    for (const t of await LocalDB.all('tasks')) {
+      if ((t.assignees || []).includes(id)) {
+        t.assignees = t.assignees.filter((x) => x !== id);
+        await LocalDB.put('tasks', t);
+      }
+    }
+    await logActivity({ entity: 'person', entity_id: id, entity_name: p.name, action: 'delete' });
   },
 
   // Elimina el proyecto con todas sus tareas (y sus comentarios y archivos)

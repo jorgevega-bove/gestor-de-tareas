@@ -3,7 +3,12 @@
  * ============================================================ */
 
 // Personas (se cargan desde la base de datos al iniciar)
-let USERS = [];
+let PEOPLE = []; // todas, incluidas las eliminadas (para mostrar nombres en el historial)
+let USERS = [];  // solo las activas: las que se pueden asignar
+async function loadPeople() {
+  PEOPLE = await Api.listPeople();
+  USERS = PEOPLE.filter((p) => !p.deleted);
+}
 
 const STATUS = {
   todo:    { label: 'No completada',       cls: 'c-red',    order: 0 },
@@ -45,6 +50,7 @@ const TOGGLE_ICON = '<svg class="i" viewBox="0 0 16 16"><path d="M5 3.5h6a4.5 4.
 const BOARD_ICON = '<svg class="i line-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="2"/><path d="M5.9 2.75v10.5M10.1 2.75v10.5"/></svg>';
 // Clip para adjuntar archivos
 const CLIP_ICON = '<svg class="i line-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13.25 7.5 8 12.75a3.4 3.4 0 0 1-4.8-4.8l5.4-5.4a2.25 2.25 0 0 1 3.2 3.2L6.4 11.15a1.1 1.1 0 0 1-1.55-1.55L9.9 4.55"/></svg>';
+const PENCIL_ICON = '<svg class="i line-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.75 2.75a1.77 1.77 0 0 1 2.5 2.5L5.5 13 2.5 13.5 3 10.5z"/><path d="M9.5 4l2.5 2.5"/></svg>';
 const icon = (name) => name === 'link' ? LINK_ICON : `<svg class="i" viewBox="0 0 16 16"><path d="${P[name]}"/></svg>`;
 
 /* ---------- Columnas ---------- */
@@ -107,7 +113,7 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const code = (t) => String(t.id);
 const byId = (id) => state.tasks.find((t) => t.id === id);
-const user = (id) => USERS.find((u) => u.id === id);
+const user = (id) => PEOPLE.find((u) => u.id === id);
 const userName = (id) => (user(id) ? user(id).name : null);
 const p2 = (n) => String(n).padStart(2, '0');
 function fmt(iso) {
@@ -722,19 +728,78 @@ function renderUserOpts() {
   const q = $('#um-search').value;
   const list = USERS.filter((u) => norm(u.name).includes(norm(q.trim())));
   $('#um-opts').innerHTML = list.map((u) => `
-    <div class="opt" data-toggle-user="${u.id}"><span class="cb ${t.assignees.includes(u.id) ? 'on' : ''}"></span><span class="tag c-gray person">${esc(u.name)}</span></div>`).join('') +
+    <div class="opt" data-toggle-user="${u.id}"><span class="cb ${t.assignees.includes(u.id) ? 'on' : ''}"></span><span class="tag c-gray person">${esc(u.name)}</span>
+      <button class="opt-edit" data-edit-user="${u.id}" title="Cambiar nombre o eliminar">${PENCIL_ICON}</button></div>`).join('') +
     createRow('create-user', q, USERS.map((u) => u.name)) ||
     '<div class="title">Escribe un nombre para crear una persona</div>';
 }
-function openUsersMenu(anchor, taskId = state.openId) {
-  openPopover(anchor, `<div class="title">Responsables</div>
+const usersListHtml = () => `<div class="title">Responsables</div>
     <input class="search" id="um-search" placeholder="Busca o crea una persona…" autocomplete="off">
-    <div class="opts" id="um-opts"></div>`);
-  Object.assign(pop().dataset, { kind: 'users', task: taskId });
-  pop().style.minWidth = '240px';
+    <div class="opts" id="um-opts"></div>`;
+function showUsersList() {
+  pop().innerHTML = usersListHtml();
+  delete pop().dataset.editing;
   renderUserOpts();
   $('#um-search').oninput = renderUserOpts;
   $('#um-search').focus();
+}
+function openUsersMenu(anchor, taskId = state.openId) {
+  openPopover(anchor, usersListHtml());
+  Object.assign(pop().dataset, { kind: 'users', task: taskId });
+  pop().style.minWidth = '260px';
+  showUsersList();
+}
+
+// Vista de edición de una persona dentro del mismo menú: cambiar nombre o eliminar
+function showPersonEdit(id) {
+  const u = user(id);
+  pop().dataset.editing = id;
+  pop().innerHTML = `
+    <div class="pe-head"><button class="mini pe-back" data-pe-back title="Volver">←</button><span>Editar persona</span></div>
+    <input class="search" id="pe-name" autocomplete="off" placeholder="Nombre">
+    <div class="pe-hint">Enter para guardar · Esc para volver</div>
+    <div class="pop-sep"></div>
+    <div class="opt logout-opt" data-pe-delete="${id}">Eliminar persona</div>`;
+  $('#pe-name').value = u.name;
+  $('#pe-name').focus();
+  $('#pe-name').select();
+}
+async function savePersonName() {
+  const id = pop().dataset.editing;
+  const name = $('#pe-name').value.replace(/\s+/g, ' ').trim();
+  if (!name) { toast('El nombre no puede quedar vacío'); return; }
+  if (USERS.some((u) => u.id !== id && norm(u.name) === norm(name))) { toast(`Ya existe una persona llamada ${name}`); return; }
+  if (name !== user(id).name) {
+    await Api.renamePerson(id, name);
+    await loadPeople();
+    renderAccount();
+    renderTable();
+    if (state.openId) renderPanel();
+    toast('Nombre actualizado');
+  }
+  showUsersList();
+}
+function confirmDeletePerson(id) {
+  if (id === CURRENT_USER) { toast('No puedes eliminar tu propia cuenta'); return; }
+  const u = user(id);
+  const n = state.tasks.filter((t) => t.assignees.includes(id)).length;
+  closePopover();
+  showConfirm({
+    title: `¿Eliminar a «${esc(u.name)}»?`,
+    body: `${n ? `Se quitará como responsable de <b>${n} tarea${n > 1 ? 's' : ''}</b>.` : 'No es responsable de ninguna tarea.'}
+      Su nombre se mantiene en la bitácora y en los comentarios. Puedes deshacerlo con Ctrl/⌘ + Z.`,
+    ok: 'Eliminar persona',
+    onOk: async () => {
+      await Api.deletePerson(id);
+      await loadPeople();
+      state.tasks = await Api.listTasks();
+      prefs.filters.assignees = (prefs.filters.assignees || []).filter((x) => x !== id);
+      savePrefs();
+      renderTable();
+      if (state.openId) renderPanel();
+      toast(`${u.name} eliminado`);
+    },
+  });
 }
 
 /* ---------- Selección múltiple (Ctrl/⌘ + clic en las filas) ---------- */
@@ -1120,6 +1185,8 @@ function activityText(e) {
       case 'delete': return `eliminó el proyecto ${proj} y sus tareas`;
     }
   }
+  if (e.entity === 'person' && e.action === 'rename') return `cambió el nombre de <b>${esc(e.from)}</b> a <b>${esc(e.to)}</b>`;
+  if (e.entity === 'person' && e.action === 'delete') return `eliminó a <b>${esc(e.entity_name)}</b> de las personas`;
   if (e.entity === 'person') return `agregó a <b>${esc(e.entity_name)}</b> como persona`;
   if (e.entity === 'app' && e.action === 'reset') return 'restableció los datos de ejemplo';
   if (e.entity === 'app' && e.action === 'undo') return 'deshizo el último cambio';
@@ -1202,7 +1269,7 @@ async function importData(file) {
 
 // Vuelve a leer todo desde la base local y redibuja la app
 async function reloadAll() {
-  USERS = await Api.listPeople();
+  await loadPeople();
   state.tasks = await Api.listTasks();
   state.projects = await Api.listProjects();
   if (!isAllView() && !projectById(prefs.project)) prefs.project = state.projects[0].id;
@@ -1349,11 +1416,16 @@ document.addEventListener('click', async (e) => {
     refreshTask(t.id);
     return;
   }
+  const eu = target.closest('[data-edit-user]');
+  if (eu) { e.stopPropagation(); showPersonEdit(eu.dataset.editUser); return; }
+  if (target.closest('[data-pe-back]')) { showUsersList(); return; }
+  const pd = target.closest('[data-pe-delete]');
+  if (pd) { confirmDeletePerson(pd.dataset.peDelete); return; }
   const cu = target.closest('[data-create-user]');
   if (cu) {
     const targets = popTargets();
     const person = await Api.createPerson(cu.dataset.createUser);
-    USERS = await Api.listPeople();
+    await loadPeople();
     for (const t of targets) {
       t.assignees = USERS.map((u) => u.id).filter((x) => [...t.assignees, person.id].includes(x));
       await Api.saveTask(t);
@@ -1746,6 +1818,12 @@ document.addEventListener('input', (e) => {
 });
 
 document.addEventListener('keydown', async (e) => {
+  // Editor de persona: Enter guarda, Esc vuelve a la lista de responsables
+  if (e.target.id === 'pe-name' && (e.key === 'Enter' || e.key === 'Escape')) {
+    e.preventDefault();
+    if (e.key === 'Enter') await savePersonName(); else showUsersList();
+    return;
+  }
   if (e.key === 'Escape' && $('#confirm').classList.contains('open')) { closeConfirm(); return; }
   if (e.key === 'Escape' && $('#dialog').classList.contains('open')) { closeDialog(); return; }
   if (e.key === 'Escape' && (e.target.matches('[data-new-project]') || e.target.id === 'page-title')) { /* lo maneja abajo */ }
@@ -1872,7 +1950,7 @@ document.addEventListener('keydown', async (e) => {
 
 async function afterHistoryChange() {
   closePopover();
-  USERS = await Api.listPeople();
+  await loadPeople();
   state.projects = await Api.listProjects();
   state.tasks = await Api.listTasks();
   if (!isAllView() && !projectById(prefs.project)) { prefs.project = state.projects[0].id; savePrefs(); }
@@ -2080,7 +2158,7 @@ board.addEventListener('drop', async (e) => {
   try {
     Api.currentUser = CURRENT_USER;
     await Api.ensureSeed(SEED);
-    USERS = await Api.listPeople();
+    await loadPeople();
     state.projects = await Api.listProjects();
     state.tasks = await Api.listTasks();
     // Migración: antes el proyecto era un texto libre; ahora cada tarea pertenece a un proyecto de la lista

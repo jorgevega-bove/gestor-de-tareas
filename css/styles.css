@@ -616,3 +616,10 @@ tbody tr.selected td.c-title { box-shadow: inset 2px 0 0 var(--accent); }
 th[data-pinned] { cursor: pointer; }
 td.c-code { font-variant-numeric: tabular-nums; }
 th[data-col="code"], td.c-code { padding-left: 8px; padding-right: 6px; }
+
+/* ---------- Editar / eliminar personas desde Responsable ---------- */
+.popover .opt .opt-edit { margin-left: auto; border: none; background: none; color: var(--text-3); cursor: pointer; width: 24px; height: 22px; border-radius: 4px; display: grid; place-items: center; flex-shrink: 0; }
+.popover .opt .opt-edit:hover { background: rgba(55,53,47,.12); color: var(--text); }
+.popover .pe-head { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 4px 4px 6px; }
+.popover .pe-back { font-size: 14px; }
+.popover .pe-hint { font-size: 12px; color: var(--text-3); padding: 0 6px 4px; }
