@@ -9,3 +9,4 @@
 - App offline: poder acceder a la app y escribir tareas sin acceso a internet.
 - Resolver cuando 2 usuarios editan las mismas tareas.
 - Automatizaciones con IA: correos electrónicos, entrevistas → generar tareas automáticamente.
+- Diseño visual de acuerdo al sistema de diseño de Bove.
