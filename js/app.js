@@ -181,9 +181,11 @@ const FILTERS = {
 const activeFilters = () => Object.entries(prefs.filters).filter(([k, v]) => FILTERS[k] && v.length);
 const matchesFilters = (t) => activeFilters().every(([k, sel]) => FILTERS[k].values(t).some((v) => sel.includes(v)));
 const isFiltering = () => !!state.query.trim() || activeFilters().length > 0;
+// Contenedor con flecha e ID; su color es el del estado de la tarea referenciada
 const depChip = (t, removable = false, link = true) =>
-  `<span class="dep" ${link ? `data-open="${t.id}"` : ''} title="${esc(t.title)}">${code(t)}</span>` +
-  (removable ? `<button class="mini dep-x" data-remove-dep="${t.id}" title="Quitar">×</button>` : '');
+  `<span class="dep tag ${STATUS[t.status].cls}" ${link ? `data-open="${t.id}"` : ''} title="${esc(t.title)} · ${STATUS[t.status].label}">` +
+  `<span class="dep-arrow">↗</span>${code(t)}` +
+  (removable ? `<button class="tag-x" data-remove-dep="${t.id}" title="Quitar">×</button>` : '') + '</span>';
 
 /* ============================================================
  *  Regla automática de dependencias

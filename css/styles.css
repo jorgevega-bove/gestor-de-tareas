@@ -149,10 +149,7 @@ td.c-code, td.muted { color: var(--text-2); font-size: 13px; }
 .person { display: inline-flex; align-items: center; gap: 6px; }
 .avatar { width: 20px; height: 20px; border-radius: 50%; color: #fff; font-size: 11px; font-weight: 600; display: grid; place-items: center; flex-shrink: 0; }
 
-.dep { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; color: var(--text); border-bottom: 1px solid rgba(55,53,47,.25); margin-right: 8px; cursor: pointer; line-height: 1.3; }
-.dep::before { content: "↗"; color: var(--text-3); font-size: 11px; }
-.dep:hover { color: var(--accent); }
-.dep.pending { border-bottom-color: rgba(235, 87, 87, .5); }
+
 .empty { color: var(--text-3); }
 
 /* ---------- Modal ---------- */
@@ -202,7 +199,7 @@ textarea, input { font: inherit; color: inherit; }
 .p-val input[type="datetime-local"].blank { color: var(--text-3); }
 .mini { border: none; background: none; color: var(--text-3); cursor: pointer; padding: 0 4px; border-radius: 3px; font-size: 13px; }
 .mini:hover { background: var(--hover); color: var(--text-2); }
-.dep-x { margin-right: 10px; }
+
 .add-dep { color: var(--text-3); }
 
 .divider { height: 1px; background: var(--border); margin: 14px 0 18px; }
@@ -521,3 +518,11 @@ th .funnel svg.line-ico { width: 13px; height: 13px; stroke: var(--accent); }
 .popover .dep-opt .code { width: 28px; }
 .popover .dep-opt .ttl { flex: 1; min-width: 0; }
 .popover .dep-opt .dep-status { flex-shrink: 0; width: 130px; text-align: right; }
+
+/* ---------- Dependencias: contenedor con el color del estado ---------- */
+.dep.tag { display: inline-flex; align-items: center; gap: 3px; margin-right: 4px; cursor: pointer; line-height: 20px; }
+.dep.tag:not([data-open]) { cursor: inherit; }
+.dep .dep-arrow { font-size: 11px; opacity: .6; }
+.dep.tag[data-open]:hover { filter: brightness(.95); }
+.dep .tag-x { color: inherit; opacity: .55; }
+.dep .tag-x:hover { opacity: 1; color: inherit; }
