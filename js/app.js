@@ -447,15 +447,15 @@ function renderPanel() {
     <textarea class="m-title" id="f-title" rows="1" placeholder="Sin título"></textarea>
 
     <div class="props">
-      ${prop('person', 'Creado por', person(t.created_by))}
+      ${prop('status', 'Estado', pickSelect('status', STATUS, t.status, false), true)}
+      ${prop('person', 'Responsable', pickUsers(t.assignees), true)}
+      ${prop('select', 'Prioridad', pickSelect('priority', PRIORITY, t.priority, true), true)}
+      ${prop('cal', 'Fecha límite', `<button class="pick-btn ${isOverdue(t) ? 'overdue' : ''}" id="pick-due">${t.due_at ? fmtDue(t.due_at) : '<span class="empty">Sin definir</span>'}</button>`, true)}
+      ${prop('select', 'Proyecto', `<button class="pick-btn" id="pick-project">${projectTag(t.project_id) || EMPTY}</button>`, true)}
       ${prop('rel', 'Depende de', deps.map((d) => depChip(d, true)).join('') +
         `<button class="mini add-dep" id="add-dep">${deps.length ? '+' : 'Vacío'}</button>`, true)}
-      ${prop('cal', 'Fecha límite', `<button class="pick-btn ${isOverdue(t) ? 'overdue' : ''}" id="pick-due">${t.due_at ? fmtDue(t.due_at) : '<span class="empty">Sin definir</span>'}</button>`, true)}
-      ${prop('select', 'Prioridad', pickSelect('priority', PRIORITY, t.priority, true), true)}
-      ${prop('select', 'Proyecto', `<button class="pick-btn" id="pick-project">${projectTag(t.project_id) || EMPTY}</button>`, true)}
-      ${prop('person', 'Responsable', pickUsers(t.assignees), true)}
+      ${prop('person', 'Creado por', person(t.created_by))}
       ${prop('clock', 'Fecha de creación', `<span class="ro">${fmt(t.created_at)}</span>`)}
-      ${prop('status', 'Estado', pickSelect('status', STATUS, t.status, false), true)}
     </div>
 
     <div class="section-h">Comentarios</div>
