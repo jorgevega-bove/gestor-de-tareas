@@ -303,7 +303,7 @@ function renderTable() {
 
 /* ---------- Tablero (Kanban) ---------- */
 /* ---------- Kanban: agrupar por un campo ---------- */
-const GROUP_LABEL = { status: 'Estado', assignees: 'Responsable', priority: 'Prioridad', project_id: 'Proyecto', created_by: 'Creado por' };
+const GROUP_LABEL = { status: 'Estado', assignees: 'Responsable', priority: 'Prioridad' };
 const LANE_BG = { 'c-red': '#fdf5f4', 'c-blue': '#f4f8fb', 'c-yellow': '#fdf9ee', 'c-green': '#f5f9f5' };
 // Columnas del Kanban según el campo elegido: [valor, encabezado, color de fondo]
 function boardLanes(g) {
@@ -342,7 +342,8 @@ function cardMeta(t, g) {
 }
 
 function renderBoard() {
-  const g = prefs.groupBy || 'status';
+  if (!GROUP_LABEL[prefs.groupBy]) prefs.groupBy = 'status'; // opciones antiguas (Proyecto, Creado por) vuelven a Estado
+  const g = prefs.groupBy;
   const list = sortedTasks();
   const readOnly = g === 'created_by';
   $('#group-tool').innerHTML = `${TOGGLE_ICON}Propiedades`;

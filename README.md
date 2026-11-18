@@ -16,7 +16,7 @@ Desde Cuenta › Configuración se puede descargar un respaldo y restaurarlo.
 - Título del proyecto editable con un clic; proyectos reordenables arrastrándolos en la barra lateral.
 - Proyectos en la barra lateral (en curso y archivados), opción "+ Crear proyecto" y "Mostrar todos" para ver las tareas de todos los proyectos en curso.
 - Vista de **tabla**: clic en un encabezado para Ordenar o Filtrar (con casillas en Estado, Prioridad, Responsable, Proyecto y Creado por); con columnas que se reordenan arrastrando y se ocultan (botón "Propiedades").
-- Vista **Kanban** agrupable por Estado, Responsable, Prioridad, Proyecto o Creado por (botón Propiedades); las tarjetas se arrastran entre columnas.
+- Vista **Kanban** agrupable por Estado, Responsable o Prioridad (botón Propiedades); las tarjetas se arrastran entre columnas.
 - Búsqueda por título, texto, ID, proyecto o responsable (Cmd+F).
 - Selección múltiple con Ctrl + clic (⌘ + clic en Mac) para cambiar estado, responsable, prioridad, fecha o proyecto de varias tareas a la vez.
 - Atajos: N crea una tarea en el proyecto actual; X alterna entre Tabla y Kanban.
