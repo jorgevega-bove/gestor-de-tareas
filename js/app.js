@@ -610,7 +610,7 @@ function openCellSelect(anchor, taskId, field) {
   let opts = [];
   if (field === 'status') opts = Object.keys(STATUS).map((k) => [k, pill(STATUS, k)]);
   if (field === 'priority') opts = [...Object.keys(PRIORITY).map((k) => [k, pill(PRIORITY, k)]), ['', EMPTY]];
-  if (field === 'project_id') opts = state.projects.map((p) => [String(p.id), projectTag(p.id)]);
+  if (field === 'project_id') opts = state.projects.filter((p) => !p.archived || p.id === t.project_id).map((p) => [String(p.id), projectTag(p.id)]);
   const cur = String(t[field] ?? '');
   const optsHtml = (q = '') => opts
     .filter(([v]) => field !== 'project_id' || norm(projectName(v)).includes(norm(q.trim())))
@@ -750,12 +750,17 @@ async function deleteTask(id) {
 }
 
 /* ---------- Proyectos (barra lateral) ---------- */
+const ARCHIVE_ICON = '<svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.75" y="2.5" width="12.5" height="3.25" rx="1"/><path d="M2.75 5.75v6.75a1 1 0 0 0 1 1h8.5a1 1 0 0 0 1-1V5.75M6.5 8.5h3"/></svg>';
 function renderSidebar() {
-  $('#project-list').innerHTML = state.projects.map((p) => {
-    const open = state.tasks.filter((t) => t.project_id === p.id && t.status !== 'done').length;
-    return `<button class="side-item proj ${p.id === prefs.project ? 'active' : ''}" data-project="${p.id}" draggable="true" title="Arrastra para cambiar el orden">
-      <span class="proj-name">${esc(p.name)}</span>${open ? `<span class="side-n">${open}</span>` : ''}</button>`;
-  }).join('');
+  const item = (p) => `
+    <div class="side-item proj ${p.id === prefs.project ? 'active' : ''}" data-project="${p.id}" draggable="true">
+      <span class="proj-name">${esc(p.name)}</span>
+      <button class="proj-archive" data-archive="${p.id}" title="${p.archived ? 'Desarchivar proyecto' : 'Archivar proyecto'}">${ARCHIVE_ICON}</button>
+    </div>`;
+  const active = state.projects.filter((p) => !p.archived);
+  const archived = state.projects.filter((p) => p.archived);
+  $('#project-list').innerHTML = active.map(item).join('');
+  $('#archived-list').innerHTML = archived.map(item).join('') || '<div class="side-empty">Ninguno</div>';
   const current = projectById(prefs.project);
   if (!$('#page-title').isContentEditable) $('#page-title').textContent = current ? current.name : '';
   document.title = current ? `${current.name} · BOVE` : 'BOVE';
@@ -1061,6 +1066,15 @@ document.addEventListener('click', async (e) => {
 
   // Proyectos
   if (target.closest('#page-title')) { startRenameProject(); return; }
+  const ar = target.closest('[data-archive]');
+  if (ar) {
+    const p = projectById(ar.dataset.archive);
+    await Api.setProjectArchived(p.id, !p.archived);
+    state.projects = await Api.listProjects();
+    renderSidebar();
+    toast(p.archived ? `${p.name} archivado` : `${p.name} vuelve a proyectos en curso`);
+    return;
+  }
   const pj = target.closest('[data-project]');
   if (pj) { selectProject(Number(pj.dataset.project)); return; }
   if (target.closest('#new-project')) {
@@ -1194,7 +1208,7 @@ window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', (e) => e.preventDefault());
 
 // Arrastrar proyectos en la barra lateral para cambiar su orden
-const plist = $('#project-list');
+const plist = $('#sidebar-projects');
 let dragProj = null;
 const clearProjMarks = () => plist.querySelectorAll('.proj').forEach((el) => el.classList.remove('drop-above', 'drop-below', 'dragging'));
 plist.addEventListener('dragstart', (e) => {
@@ -1211,6 +1225,7 @@ plist.addEventListener('dragover', (e) => {
   e.preventDefault();
   plist.querySelectorAll('.proj').forEach((x) => x !== el && x.classList.remove('drop-above', 'drop-below'));
   if (Number(el.dataset.project) === dragProj) return;
+  if (!!projectById(el.dataset.project).archived !== !!projectById(dragProj).archived) return; // solo dentro de la misma sección
   const r = el.getBoundingClientRect();
   const below = e.clientY > r.top + r.height / 2;
   el.classList.toggle('drop-below', below);
@@ -1222,7 +1237,8 @@ plist.addEventListener('drop', async (e) => {
   e.preventDefault();
   const target = Number(el.dataset.project);
   const below = el.classList.contains('drop-below');
-  if (target !== dragProj) {
+  const sameSection = !!projectById(target).archived === !!projectById(dragProj).archived;
+  if (target !== dragProj && sameSection) {
     const ids = state.projects.map((p) => p.id).filter((id) => id !== dragProj);
     ids.splice(ids.indexOf(target) + (below ? 1 : 0), 0, dragProj);
     await Api.saveProjectOrder(ids);

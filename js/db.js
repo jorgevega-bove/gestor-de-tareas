@@ -7,7 +7,7 @@
  *
  * Modelo de datos (pensado para que calce con tablas de Supabase):
  *   people      { id, name, created_at }   (personas que pueden ser responsables)
- *   projects    { id, name, position, created_at }
+ *   projects    { id, name, position, archived, created_at }
  *   tasks       { id, project_id, title, description, status, priority, project, assignees: [ids],
  *                 created_by, created_at, due_at, depends_on: [ids] }
  *   comments    { id, task_id, author, body, created_at }
@@ -140,6 +140,12 @@ const Api = {
     const person = { id, name, created_at: nowISO() };
     await LocalDB.put('people', person);
     return person;
+  },
+
+  async setProjectArchived(id, archived) {
+    const p = await LocalDB.get('projects', id);
+    p.archived = archived;
+    await LocalDB.put('projects', p);
   },
 
   async renameProject(id, name) {
