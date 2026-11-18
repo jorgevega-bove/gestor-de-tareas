@@ -39,7 +39,9 @@ const P = {
 // Íconos de línea para Ordenar (dos flechas) y Filtro (embudo)
 const SORT_ICON = '<svg class="i line-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13V3M2.75 5.25 5 3l2.25 2.25M11 3v10M8.75 10.75 11 13l2.25-2.25"/></svg>';
 const FUNNEL_ICON = '<svg class="i line-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 3h11.5L9.25 8.6v4.4l-2.5-1.25V8.6z"/></svg>';
-const icon = (name) => `<svg class="i" viewBox="0 0 16 16"><path d="${P[name]}"/></svg>`;
+// Ícono de enlace (cadena) para "Depende de"
+const LINK_ICON = '<svg class="i line-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6.75 9.25a2.75 2.75 0 0 0 3.9 0l2.35-2.35a2.75 2.75 0 0 0-3.9-3.9l-.85.85"/><path d="M9.25 6.75a2.75 2.75 0 0 0-3.9 0L3 9.1a2.75 2.75 0 0 0 3.9 3.9l.85-.85"/></svg>';
+const icon = (name) => name === 'link' ? LINK_ICON : `<svg class="i" viewBox="0 0 16 16"><path d="${P[name]}"/></svg>`;
 
 /* ---------- Columnas ---------- */
 const COLUMNS = [
@@ -50,7 +52,7 @@ const COLUMNS = [
   { key: 'due_at',     label: 'Fecha límite',      icon: 'cal',                   sort: (t) => (t.due_at ? dueSortKey(t.due_at) : null) },
   { key: 'code',       label: 'ID',                icon: 'id',     hidden: true,  sort: (t) => t.id },
   { key: 'project_id', label: 'Proyecto',          icon: 'select', hidden: true,  sort: (t) => projectName(t.project_id) },
-  { key: 'depends_on', label: 'Depende de',        icon: 'rel',    hidden: true,  sort: (t) => t.depends_on.length || null },
+  { key: 'depends_on', label: 'Depende de',        icon: 'link',    hidden: true,  sort: (t) => t.depends_on.length || null },
   { key: 'created_by', label: 'Creado por',        icon: 'person', hidden: true,  sort: (t) => userName(t.created_by) },
   { key: 'created_at', label: 'Fecha de creación', icon: 'clock',  hidden: true,  sort: (t) => t.created_at },
 ];
@@ -446,7 +448,7 @@ function renderPanel() {
       ${prop('select', 'Prioridad', pickSelect('priority', PRIORITY, t.priority, true), true)}
       ${prop('cal', 'Fecha límite', `<button class="pick-btn" id="pick-due">${t.due_at ? fmtDue(t.due_at) : '<span class="empty">Sin definir</span>'}</button>`, true)}
       ${prop('select', 'Proyecto', `<button class="pick-btn" id="pick-project">${projectTag(t.project_id) || EMPTY}</button>`, true)}
-      ${prop('rel', 'Depende de', deps.map((d) => depChip(d, true)).join('') +
+      ${prop('link', 'Depende de', deps.map((d) => depChip(d, true)).join('') +
         `<button class="mini add-dep" id="add-dep">${deps.length ? '+' : 'Vacío'}</button>`, true)}
       ${prop('person', 'Creado por', person(t.created_by))}
       ${prop('clock', 'Fecha de creación', `<span class="ro">${fmt(t.created_at)}</span>`)}

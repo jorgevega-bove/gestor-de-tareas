@@ -533,3 +533,4 @@ th .funnel svg.line-ico { width: 13px; height: 13px; stroke: var(--accent); }
 /* Menú de cuenta: "Salir de la cuenta" en rojo suave (el mismo rojo de la app) */
 .popover .opt.logout-opt { color: #d44c47; }
 .popover .opt.logout-opt:hover { background: #fdebec; }
+.p-label svg.line-ico, th .h svg.line-ico { stroke: var(--text-3); }
