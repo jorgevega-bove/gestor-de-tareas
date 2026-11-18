@@ -117,7 +117,6 @@ td.c-title .open {
 }
 tbody tr:hover .open { opacity: 1; }
 td.c-code, td.muted { color: var(--text-2); font-size: 13px; }
-.overdue { color: var(--danger); }
 .lock { color: var(--danger); display: inline-flex; title: ''; }
 .add-row { color: var(--text-3); padding: 7px 8px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; gap: 6px; align-items: center; }
 .add-row:hover { background: var(--row-hover); }
@@ -398,7 +397,6 @@ svg.view-ico { fill: none; width: 16px; height: 16px; }
 .dp-row.disabled { opacity: .55; }
 .dp-row.disabled:hover { background: none; }
 .dp-row.disabled .dp-undef { cursor: not-allowed; }
-.pick-btn.overdue { color: var(--danger); }
 
 /* ---------- Proyectos en curso / archivados ---------- */
 .side-item.proj { position: relative; }

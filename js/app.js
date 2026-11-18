@@ -111,21 +111,13 @@ function fmtSize(b) {
   return `${(b / 1024 ** 3).toFixed(2).replace('.', ',')} GB`;
 }
 // La fecha límite puede ser solo fecha ('2026-11-20') o fecha y hora ('2026-11-20T18:00').
-// Sin hora, la tarea vence al final de ese día.
 const hasTime = (v) => !!v && v.includes('T');
 const dueSortKey = (v) => (hasTime(v) ? v : `${v}T23:59`);
-function parseLocal(v) {
-  const [d, tm = '23:59'] = v.split('T');
-  const [y, m, day] = d.split('-').map(Number);
-  const [h, mi] = tm.split(':').map(Number);
-  return new Date(y, m - 1, day, h, mi);
-}
 function fmtDue(v) {
   if (!v) return '';
   const [y, m, d] = v.split('T')[0].split('-');
   return `${d}/${m}/${y}` + (hasTime(v) ? ` ${v.split('T')[1]}` : '');
 }
-const isOverdue = (t) => t.due_at && t.status !== 'done' && parseLocal(t.due_at) < new Date();
 function hashIdx(s, n) { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h % n; }
 
 const blockedBy = (t) => t.depends_on.map(byId).filter((x) => x && x.status !== 'done');
@@ -268,7 +260,7 @@ function cell(col, t) {
     case 'priority': return `<td${ed}>${pill(PRIORITY, t.priority)}</td>`;
     case 'assignees': return `<td${ed}><span class="people">${people(t.assignees)}</span></td>`;
     case 'project_id': return `<td${ed}>${projectTag(t.project_id)}</td>`;
-    case 'due_at': return `<td${ed} class="${isOverdue(t) ? 'overdue' : ''}">${fmtDue(t.due_at)}</td>`;
+    case 'due_at': return `<td${ed}>${fmtDue(t.due_at)}</td>`;
     case 'depends_on': return `<td${ed}>${t.depends_on.map(byId).filter(Boolean).map((d) => depChip(d, false, false)).join('')}</td>`;
     case 'created_by': return `<td>${person(t.created_by)}</td>`;
     case 'created_at': return `<td>${fmt(t.created_at)}</td>`;
@@ -452,7 +444,7 @@ function renderPanel() {
       ${prop('status', 'Estado', pickSelect('status', STATUS, t.status, false), true)}
       ${prop('person', 'Responsable', pickUsers(t.assignees), true)}
       ${prop('select', 'Prioridad', pickSelect('priority', PRIORITY, t.priority, true), true)}
-      ${prop('cal', 'Fecha límite', `<button class="pick-btn ${isOverdue(t) ? 'overdue' : ''}" id="pick-due">${t.due_at ? fmtDue(t.due_at) : '<span class="empty">Sin definir</span>'}</button>`, true)}
+      ${prop('cal', 'Fecha límite', `<button class="pick-btn" id="pick-due">${t.due_at ? fmtDue(t.due_at) : '<span class="empty">Sin definir</span>'}</button>`, true)}
       ${prop('select', 'Proyecto', `<button class="pick-btn" id="pick-project">${projectTag(t.project_id) || EMPTY}</button>`, true)}
       ${prop('rel', 'Depende de', deps.map((d) => depChip(d, true)).join('') +
         `<button class="mini add-dep" id="add-dep">${deps.length ? '+' : 'Vacío'}</button>`, true)}
