@@ -19,14 +19,15 @@
   --on-solid: #09161F;
   --solid: #F2F2F0;       /* botón principal: claro sobre oscuro, sin acento */
   --solid-hover: #FFFFFF;
-  --danger: #CF7066;      /* --bove-off aclarado para leerse sobre oscuro */
+  --danger: #F07A70;      /* --bove-off aclarado para leerse sobre oscuro */
   --danger-solid: #C0392B;/* --bove-off */
   --danger-bg: #2E1D21;
-  /* Estados (funcionales de BOVE: off · acento · warn · yes) */
-  --red: #C0392B;    --red-tag: #391F22;    --red-ink: #D68C84;    --red-card: #281C21;    --red-card-h: #351E22;    --red-lane: #161820;
-  --blue: #14A89F;   --blue-tag: #0C3C40;   --blue-ink: #78C9C3;   --blue-card: #0B2F35;   --blue-card-h: #0C393E;   --blue-lane: #0A2028;
-  --yellow: #C9A227; --yellow-tag: #3B3A21; --yellow-ink: #DBC681; --yellow-card: #2A2E20; --yellow-card-h: #373821; --yellow-lane: #162020;
-  --green: #27AE60;  --green-tag: #113E30;  --green-ink: #82CDA1;  --green-card: #0E302A;  --green-card-h: #103A2F;  --green-lane: #0B2124;
+  /* Estados: funcionales de BOVE (off · acento · warn · yes) en su versión para fondo oscuro,
+     más brillantes, como hace la marca con el teal (#0B7A75 sobre claro → #14A89F sobre oscuro) */
+  --red: #EF5A4E;     --red-tag: #5C2E30; --red-ink: #F17369; --red-card: #372428; --red-card-h: #47282C; --red-lane: #1E1C23; --red-edge: #7C3836;
+  --blue: #1FC4B9;    --blue-tag: #115556; --blue-ink: #41CDC4; --blue-card: #0D393E; --blue-card-h: #0F4549; --blue-lane: #0B262D; --blue-edge: #146D6C;
+  --yellow: #EBC43F;  --yellow-tag: #5A552B; --yellow-ink: #EECD5C; --yellow-card: #363925; --yellow-card-h: #464528; --yellow-lane: #1D2622; --yellow-edge: #7A6D2F;
+  --green: #3CCB7A;   --green-tag: #1B5740; --green-ink: #59D38E; --green-card: #133A31; --green-card-h: #174738; --green-lane: #0E2627; --green-edge: #22704C;
   --gray-tag: #1A3040; --gray-ink: #C9CDD1;
   --scrim: rgba(3, 9, 13, .72);
   --shadow-overlay: 0 0 0 1px #1C3242, 0 8px 16px rgba(0,0,0,.35), 0 24px 48px rgba(0,0,0,.4);
@@ -747,10 +748,10 @@ h1#page-title[contenteditable="plaintext-only"] { box-shadow: inset 0 -2px 0 var
 /* Kanban: tarjetas sin sombra, con filete; color tenue según el estado */
 .card { background: var(--surface); }
 .card[class*="st-"] { box-shadow: none; }
-.card.st-todo  { box-shadow: inset 0 0 0 1px #4A2529; }
-.card.st-doing { box-shadow: inset 0 0 0 1px #0F4A4D; }
-.card.st-wait  { box-shadow: inset 0 0 0 1px #4A4524; }
-.card.st-done  { box-shadow: inset 0 0 0 1px #144A37; }
+.card.st-todo  { box-shadow: inset 0 0 0 1px var(--red-edge); }
+.card.st-doing { box-shadow: inset 0 0 0 1px var(--blue-edge); }
+.card.st-wait  { box-shadow: inset 0 0 0 1px var(--yellow-edge); }
+.card.st-done  { box-shadow: inset 0 0 0 1px var(--green-edge); }
 
 /* Movimiento: una sola curva, sin rebote; nada si el sistema pide menos movimiento */
 .modal, .popover, .dialog-box, .confirm-box, .sel-bar, .toast { animation-timing-function: var(--ease); }
