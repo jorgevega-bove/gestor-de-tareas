@@ -267,9 +267,10 @@ function renderTableView() {
     `<tr data-open="${t.id}"><td class="gutter"><button class="row-del" data-del-task="${t.id}" title="Eliminar tarea">${icon('trash')}</button></td>${cols.map((c) => cell(c, t)).join('')}</tr>`).join('');
   $('#count').textContent = state.query.trim() ? `${shown.length} de ${state.tasks.length}` : state.tasks.length;
   $('#sort-tool').classList.toggle('on', !!key);
+  $('#sort-tool').hidden = !key;
   $('#sort-tool').innerHTML = key
     ? `↕ ${COLUMNS.find((c) => c.key === key).label} ${dir === 'asc' ? '↑' : '↓'}`
-    : '↕ Ordenar';
+    : '';
   $('#projects').innerHTML = [...new Set(state.tasks.map((t) => t.project).filter(Boolean))]
     .sort().map((p) => `<option value="${esc(p)}">`).join('');
 }

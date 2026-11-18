@@ -304,3 +304,4 @@ th.drop-after { box-shadow: inset -3px 0 0 var(--accent); }
 .p-val input[type="date"].blank { color: var(--text-3); }
 .p-val input.due-time { margin-left: 10px; }
 .p-val #add-time, .p-val #clear-due { margin-left: 8px; }
+.tool[hidden] { display: none; }
