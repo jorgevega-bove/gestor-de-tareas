@@ -82,7 +82,10 @@ const prefs = (() => {
   try { return JSON.parse(localStorage.getItem('gt-prefs-v2')) || {}; } catch { return {}; }
 })();
 // Usuario actual: por ahora la maqueta la usa solo Jorge (el sistema de cuentas viene después)
-const CURRENT_USER = 'jorge';
+// Usuario actual. En modo local es Jorge; en modo compartido (Supabase) es la persona vinculada a la cuenta.
+let CURRENT_USER = 'jorge';
+const SHARED = () => Api.mode === 'supabase';
+const UNDO_HINT = () => (Api.supportsUndo ? ' Puedes deshacerlo con Ctrl/⌘ + Z.' : '');
 delete CURRENT_USER;
 prefs.sort = prefs.sort || { key: null, dir: null };
 prefs.view = prefs.view || 'table';
@@ -488,6 +491,7 @@ function renderFilterBar() {
  * ============================================================ */
 const blobUrls = new Map();
 const urlFor = (a) => {
+  if (a.url) return a.url; // modo compartido: enlace temporal de Supabase Storage
   if (!blobUrls.has(a.id)) blobUrls.set(a.id, URL.createObjectURL(a.blob));
   return blobUrls.get(a.id);
 };
@@ -787,7 +791,7 @@ function confirmDeletePerson(id) {
   showConfirm({
     title: `¿Eliminar a «${esc(u.name)}»?`,
     body: `${n ? `Se quitará como responsable de <b>${n} tarea${n > 1 ? 's' : ''}</b>.` : 'No es responsable de ninguna tarea.'}
-      Su nombre se mantiene en la bitácora y en los comentarios. Puedes deshacerlo con Ctrl/⌘ + Z.`,
+      Su nombre se mantiene en la bitácora y en los comentarios.${UNDO_HINT()}`,
     ok: 'Eliminar persona',
     onOk: async () => {
       await Api.deletePerson(id);
@@ -1121,10 +1125,10 @@ function openSettings() {
       <div class="set-txt"><b>Restaurar respaldo</b><span>Reemplaza todos los datos actuales por los de un archivo de respaldo.</span></div>
       <label class="btn-cancel">Elegir archivo<input type="file" id="import-data" accept=".json,application/json" hidden></label>
     </div>
-    <div class="set-sec">
+    ${SHARED() ? '' : `    <div class="set-sec">
       <div class="set-txt"><b>Datos de ejemplo</b><span>Borra todo y vuelve a cargar los proyectos y tareas de ejemplo.</span></div>
       <button class="btn-cancel danger-text" id="reset-data">Restablecer datos de ejemplo</button>
-    </div>`);
+    </div>`}`);
 }
 
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
@@ -1232,6 +1236,7 @@ async function openActivity() {
 }
 
 function setLoggedOut(v) {
+  if (SHARED() && v) { Api.auth.signOut().then(() => location.reload()); return; }
   prefs.loggedOut = v;
   savePrefs();
   closeTask();
@@ -1626,7 +1631,7 @@ document.addEventListener('click', async (e) => {
       const ids = [...state.selected];
       showConfirm({
         title: `¿Eliminar ${ids.length} tarea${ids.length > 1 ? 's' : ''}?`,
-        body: 'Se eliminarán con sus comentarios y archivos adjuntos. Puedes deshacerlo con Ctrl/⌘ + Z.',
+        body: `Se eliminarán con sus comentarios y archivos adjuntos.${UNDO_HINT()}`,
         ok: 'Eliminar',
         onOk: async () => { for (const id of ids) await deleteTask(id, true); state.selected.clear(); renderTable(); toast(`${ids.length} tareas eliminadas`); },
       });
@@ -1942,6 +1947,7 @@ document.addEventListener('keydown', async (e) => {
   const el = document.activeElement;
   if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
   e.preventDefault();
+  if (!Api.supportsUndo) { toast('Deshacer no está disponible en la versión compartida'); return; }
   const ok = isUndo ? await Api.undo() : await Api.redo();
   if (!ok) { toast(isUndo ? 'No hay nada que deshacer' : 'No hay nada que rehacer'); return; }
   await afterHistoryChange();
@@ -2154,8 +2160,99 @@ board.addEventListener('drop', async (e) => {
 });
 
 /* ---------- Inicio ---------- */
+/* ============================================================
+ *  Modo compartido (Supabase): inicio de sesión con código al correo
+ * ============================================================ */
+function loginCard(html) {
+  $('#logged-out').innerHTML = `<div class="lo-card"><div class="ws-icon lo-logo">B</div>${html}</div>`;
+  $('#logged-out').hidden = false;
+}
+// Pide el correo, envía un código y lo verifica. Termina cuando hay sesión iniciada.
+function showLogin(msg = '') {
+  return new Promise((resolve) => {
+    const dom = Api.auth.allowedDomain;
+    const step1 = () => {
+      loginCard(`<h2>Entrar a BOVE</h2>
+        <p>${msg ? esc(msg) : `Ingresa tu correo${dom ? ` de @${esc(dom)}` : ''} y te enviaremos un código para entrar.`}</p>
+        <form class="lo-form" id="lo-form1"><input type="email" id="lo-email" placeholder="nombre@${esc(dom || 'empresa.cl')}" required autocomplete="email">
+        <button class="btn-new" type="submit">Enviar código</button></form>`);
+      $('#lo-email').focus();
+      $('#lo-form1').onsubmit = async (ev) => {
+        ev.preventDefault();
+        const email = $('#lo-email').value.trim().toLowerCase();
+        if (dom && !email.endsWith('@' + dom)) { toast(`Usa tu correo de @${dom}`); return; }
+        try { await Api.auth.sendCode(email); step2(email); } catch (err) { toast(`No se pudo enviar el código: ${err.message}`); }
+      };
+    };
+    const step2 = (email) => {
+      loginCard(`<h2>Revisa tu correo</h2>
+        <p>Enviamos un código a <b>${esc(email)}</b>. Escríbelo aquí:</p>
+        <form class="lo-form" id="lo-form2"><input id="lo-code" inputmode="numeric" autocomplete="one-time-code" placeholder="Código" required>
+        <button class="btn-new" type="submit">Entrar</button></form>
+        <p><a href="#" id="lo-back" class="lo-link">Usar otro correo</a></p>`);
+      $('#lo-code').focus();
+      $('#lo-back').onclick = (ev) => { ev.preventDefault(); step1(); };
+      $('#lo-form2').onsubmit = async (ev) => {
+        ev.preventDefault();
+        try { await Api.auth.verifyCode(email, $('#lo-code').value.trim()); $('#logged-out').hidden = true; resolve(); }
+        catch (err) { toast(`Código incorrecto o vencido: ${err.message}`); }
+      };
+    };
+    step1();
+  });
+}
+// Primera vez que entra una cuenta: elegir quién es entre las personas existentes, o crear una nueva
+function linkAccount(email) {
+  return new Promise((resolve) => {
+    const free = USERS.filter((u) => !u.email);
+    const guess = email.split('@')[0].split(/[._-]/)[0];
+    loginCard(`<h2>¿Quién eres?</h2>
+      <p>Es la primera vez que entras con <b>${esc(email)}</b>. Elige tu nombre para vincular tu cuenta, o créalo.</p>
+      <div class="lo-people">${free.map((u) => `<button class="lo-person" data-link-person="${u.id}">${esc(u.name)}</button>`).join('')}</div>
+      <form class="lo-form" id="lo-new"><input id="lo-name" placeholder="Soy nuevo: mi nombre" value="${esc(guess.charAt(0).toUpperCase() + guess.slice(1))}" required>
+      <button class="btn-new" type="submit">Crear</button></form>`);
+    $('#logged-out').onclick = async (ev) => {
+      const b = ev.target.closest('[data-link-person]');
+      if (!b) return;
+      await Api.linkPerson(b.dataset.linkPerson, email);
+      $('#logged-out').onclick = null; $('#logged-out').hidden = true;
+      resolve(b.dataset.linkPerson);
+    };
+    $('#lo-new').onsubmit = async (ev) => {
+      ev.preventDefault();
+      const p = await Api.createPerson($('#lo-name').value.trim(), email);
+      $('#logged-out').onclick = null; $('#logged-out').hidden = true;
+      resolve(p.id);
+    };
+  });
+}
+async function sharedSignIn() {
+  let email = await Api.auth.email();
+  const dom = Api.auth.allowedDomain;
+  if (email && dom && !email.endsWith('@' + dom)) { await Api.auth.signOut(); email = null; }
+  if (!email) { await showLogin(); email = await Api.auth.email(); }
+  await loadPeople();
+  const person = await Api.personForEmail(email);
+  CURRENT_USER = person && !person.deleted ? person.id : await linkAccount(email);
+  if (person && person.deleted) await Api.linkPerson(person.id, email);
+}
+
+// Recarga los datos cuando otra persona cambia algo (si no estás escribiendo en ese momento)
+let remoteTimer;
+async function refreshFromServer() {
+  clearTimeout(remoteTimer);
+  const el = document.activeElement;
+  const typing = el && (el.isContentEditable || /^(INPUT|TEXTAREA)$/.test(el.tagName));
+  if (typing || pop().classList.contains('open') || $('#confirm').classList.contains('open')) {
+    remoteTimer = setTimeout(refreshFromServer, 1500);
+    return;
+  }
+  await afterHistoryChange();
+}
+
 (async () => {
   try {
+    if (SHARED()) await sharedSignIn();
     Api.currentUser = CURRENT_USER;
     await Api.ensureSeed(SEED);
     await loadPeople();
@@ -2184,13 +2281,19 @@ board.addEventListener('drop', async (e) => {
         await Api.saveTask(t, { silent: true });
       }
     }
+    // Base nueva (modo compartido): se crea un primer proyecto para empezar
+    if (!state.projects.length) {
+      await Api.createProject('General');
+      state.projects = await Api.listProjects();
+    }
   } catch (err) {
-    document.body.innerHTML = `<p style="padding:40px">No se pudo abrir la base de datos local: ${esc(err.message)}</p>`;
+    document.body.innerHTML = `<p style="padding:40px">No se pudo abrir la base de datos${SHARED() ? '' : ' local'}: ${esc(err.message)}</p>`;
     return;
   }
   if (!isAllView() && !projectById(prefs.project)) { prefs.project = state.projects[0].id; savePrefs(); }
   renderAccount();
-  $('#logged-out').hidden = !prefs.loggedOut;
+  $('#logged-out').hidden = SHARED() || !prefs.loggedOut;
+  if (SHARED()) Api.onRemoteChange(refreshFromServer);
   renderSidebar();
   renderTable();
 })();

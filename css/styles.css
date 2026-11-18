@@ -623,3 +623,14 @@ th[data-col="code"], td.c-code { padding-left: 8px; padding-right: 6px; }
 .popover .pe-head { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 4px 4px 6px; }
 .popover .pe-back { font-size: 14px; }
 .popover .pe-hint { font-size: 12px; color: var(--text-3); padding: 0 6px 4px; }
+
+/* ---------- Modo compartido: inicio de sesión ---------- */
+.toasts { z-index: 90; }
+.lo-form { display: flex; gap: 8px; margin: 0 0 10px; }
+.lo-form input { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font: inherit; outline: none; background: #f7f7f5; }
+.lo-form input:focus { border-color: var(--accent); background: #fff; }
+.lo-form .btn-new { white-space: nowrap; }
+.lo-link { color: var(--text-2); font-size: 13px; }
+.lo-people { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 0 0 14px; }
+.lo-person { border: 1px solid var(--border); background: #fff; border-radius: 16px; padding: 4px 12px; font: inherit; cursor: pointer; }
+.lo-person:hover { border-color: var(--accent); color: var(--accent); }
