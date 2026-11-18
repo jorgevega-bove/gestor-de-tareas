@@ -91,6 +91,7 @@ const DEFAULT_WIDTHS = { title: 320, status: 170, assignees: 190, priority: 120,
 prefs.widths = { ...DEFAULT_WIDTHS, ...(prefs.widths || {}) };
 if (prefs.widths.code < 90) prefs.widths.code = 90; // la columna ID era muy angosta para arrastrarla
 const MIN_WIDTH = 60;
+const GUTTER = 56; // espacio a la izquierda de la tabla: asa para arrastrar + basurero
 const orderedColumns = () => prefs.order.map((k) => COLUMNS.find((c) => c.key === k));
 function savePrefs() { try { localStorage.setItem('gt-prefs-v2', JSON.stringify(prefs)); } catch {} }
 
@@ -230,11 +231,25 @@ function matchesQuery(t) {
   return q.split(/\s+/).every((w) => hay.includes(w));
 }
 
+// Orden manual: cada tarea tiene una posición (si no, se usa su ID)
+const pos = (t) => t.position ?? t.id;
+
+// Mueve una tarea antes o después de otra en el orden manual y guarda las posiciones que cambian
+async function moveTask(movedId, targetId, after) {
+  if (movedId === targetId) return;
+  const order = [...state.tasks].sort((a, b) => pos(a) - pos(b) || a.id - b.id).filter((t) => t.id !== movedId);
+  const idx = order.findIndex((t) => t.id === targetId);
+  order.splice(idx + (after ? 1 : 0), 0, byId(movedId));
+  for (const [i, t] of order.entries()) {
+    if (t.position !== i + 1) { t.position = i + 1; await Api.saveTask(t); }
+  }
+}
+
 function sortedTasks() {
   const list = state.tasks.filter((t) => inView(t) && matchesQuery(t) && matchesFilters(t));
   const { key, dir } = prefs.sort;
   const col = COLUMNS.find((c) => c.key === key);
-  if (!col) return list.sort((a, b) => a.id - b.id);
+  if (!col) return list.sort((a, b) => pos(a) - pos(b) || a.id - b.id);
   return list.sort((a, b) => {
     const va = col.sort(a), vb = col.sort(b);
     const na = va === null || va === undefined || va === '';
@@ -309,8 +324,8 @@ async function setStatus(t, status) {
 function renderTableView() {
   const cols = visibleColumns();
   const { key, dir } = prefs.sort;
-  $('#colgroup').innerHTML = `<col style="width:34px">` + cols.map((c) => `<col data-w="${c.key}" style="width:${prefs.widths[c.key]}px">`).join('');
-  $('#task-table').style.width = `${34 + cols.reduce((n, c) => n + prefs.widths[c.key], 0)}px`;
+  $('#colgroup').innerHTML = `<col style="width:${GUTTER}px">` + cols.map((c) => `<col data-w="${c.key}" style="width:${prefs.widths[c.key]}px">`).join('');
+  $('#task-table').style.width = `${GUTTER + cols.reduce((n, c) => n + prefs.widths[c.key], 0)}px`;
   $('#thead').innerHTML = `<tr><th class="gutter"></th>${cols.map((c) => `
     <th data-head="${c.key}" data-col="${c.key}" draggable="true" class="${c.key === key ? 'sorted' : ''} ${(prefs.filters[c.key] || []).length ? 'filtered' : ''}" title="Clic para ordenar o filtrar · arrastra para mover">
       <div class="h">${icon(c.icon)}${c.label}<span class="arrow">${(prefs.filters[c.key] || []).length ? `<span class="funnel">${FUNNEL_ICON}</span>` : ''}${c.key === key ? (dir === 'asc' ? '↑' : '↓') : ''}</span></div>
@@ -319,7 +334,7 @@ function renderTableView() {
   const shown = sortedTasks();
   $('#rows').innerHTML = shown.length ? '' : `<tr class="no-results"><td></td><td colspan="${cols.length}">${state.tasks.some(inView) ? 'Ninguna tarea coincide con la búsqueda o los filtros' : (isAllView() ? 'No hay tareas en los proyectos en curso' : 'Este proyecto todavía no tiene tareas')}</td></tr>`;
   $('#rows').innerHTML += shown.map((t) =>
-    `<tr data-row="${t.id}"><td class="gutter"><button class="row-del" data-del-task="${t.id}" title="Eliminar tarea">${icon('trash')}</button></td>${cols.map((c) => cell(c, t)).join('')}</tr>`).join('');
+    `<tr data-row="${t.id}"><td class="gutter"><span class="row-drag" draggable="true" data-drag-row="${t.id}" title="Arrastra para mover la tarea">⋮⋮</span><button class="row-del" data-del-task="${t.id}" title="Eliminar tarea">${icon('trash')}</button></td>${cols.map((c) => cell(c, t)).join('')}</tr>`).join('');
   const total = state.tasks.filter(inView).length;
   $('#count').textContent = isFiltering() ? `${shown.length} de ${total}` : total;
   renderFilterBar();
@@ -1654,7 +1669,7 @@ document.addEventListener('mousemove', (e) => {
   prefs.widths[resizing.key] = w;
   resizing.col.style.width = `${w}px`;
   const cols = visibleColumns();
-  $('#task-table').style.width = `${34 + cols.reduce((n, c) => n + prefs.widths[c.key], 0)}px`;
+  $('#task-table').style.width = `${GUTTER + cols.reduce((n, c) => n + prefs.widths[c.key], 0)}px`;
 });
 document.addEventListener('mouseup', () => {
   if (!resizing) return;
@@ -1713,6 +1728,48 @@ thead.addEventListener('drop', (e) => {
 thead.addEventListener('dragend', () => { dragCol = null; clearColMarks(); });
 
 // Arrastrar tarjetas entre columnas del tablero
+// Arrastrar filas de la tabla (asa ⋮⋮) para cambiar el orden manual
+const rowsEl = $('#rows');
+let dragRow = null;
+const clearRowMarks = () => rowsEl.querySelectorAll('tr').forEach((r) => r.classList.remove('drop-above', 'drop-below', 'dragging'));
+rowsEl.addEventListener('dragstart', (e) => {
+  const h = e.target.closest('[data-drag-row]');
+  if (!h) return;
+  if (prefs.sort.key) {
+    e.preventDefault();
+    toast('Quita el orden de la columna para mover las tareas a mano');
+    return;
+  }
+  dragRow = Number(h.dataset.dragRow);
+  e.dataTransfer.setData('text/x-row', String(dragRow));
+  e.dataTransfer.effectAllowed = 'move';
+  const tr = h.closest('tr');
+  e.dataTransfer.setDragImage(tr, 20, 18);
+  tr.classList.add('dragging');
+});
+rowsEl.addEventListener('dragover', (e) => {
+  const tr = e.target.closest('tr[data-row]');
+  if (!tr || dragRow === null) return;
+  e.preventDefault();
+  rowsEl.querySelectorAll('tr').forEach((r) => r !== tr && r.classList.remove('drop-above', 'drop-below'));
+  if (Number(tr.dataset.row) === dragRow) return;
+  const r = tr.getBoundingClientRect();
+  const below = e.clientY > r.top + r.height / 2;
+  tr.classList.toggle('drop-below', below);
+  tr.classList.toggle('drop-above', !below);
+});
+rowsEl.addEventListener('drop', async (e) => {
+  const tr = e.target.closest('tr[data-row]');
+  if (!tr || dragRow === null) return;
+  e.preventDefault();
+  const after = tr.classList.contains('drop-below');
+  const moved = dragRow;
+  dragRow = null;
+  await moveTask(moved, Number(tr.dataset.row), after);
+  renderTable();
+});
+rowsEl.addEventListener('dragend', () => { dragRow = null; clearRowMarks(); });
+
 const board = $('#board-view');
 board.addEventListener('dragstart', (e) => {
   const c = e.target.closest('[data-card]');
@@ -1722,21 +1779,36 @@ board.addEventListener('dragstart', (e) => {
   c.classList.add('dragging');
 });
 board.addEventListener('dragend', () => {
-  board.querySelectorAll('.dragging, .drop').forEach((el) => el.classList.remove('dragging', 'drop'));
+  board.querySelectorAll('.dragging, .drop, .drop-above, .drop-below').forEach((el) => el.classList.remove('dragging', 'drop', 'drop-above', 'drop-below'));
 });
+// Tarjeta bajo el cursor dentro de una columna, y si se suelta antes o después de ella
+function cardDropTarget(lane, y) {
+  const cards = [...lane.querySelectorAll('[data-card]:not(.dragging)')];
+  for (const c of cards) {
+    const r = c.getBoundingClientRect();
+    if (y < r.top + r.height / 2) return { card: c, after: false };
+  }
+  return cards.length ? { card: cards[cards.length - 1], after: true } : null;
+}
 board.addEventListener('dragover', (e) => {
   const l = e.target.closest('[data-lane]');
   if (!l || !e.dataTransfer.types.includes('text/x-task')) return;
   e.preventDefault();
-  board.querySelectorAll('.drop').forEach((el) => el !== l && el.classList.remove('drop'));
+  board.querySelectorAll('.drop, .drop-above, .drop-below').forEach((el) => el.classList.remove('drop', 'drop-above', 'drop-below'));
   l.classList.add('drop');
+  if (!prefs.sort.key) {
+    const tgt = cardDropTarget(l, e.clientY);
+    if (tgt) tgt.card.classList.add(tgt.after ? 'drop-below' : 'drop-above');
+  }
 });
 board.addEventListener('drop', async (e) => {
   const l = e.target.closest('[data-lane]');
   const id = Number(e.dataTransfer.getData('text/x-task'));
   if (!l || !id) return;
   e.preventDefault();
+  const tgt = prefs.sort.key ? null : cardDropTarget(l, e.clientY);
   await setStatus(byId(id), l.dataset.lane);
+  if (tgt) await moveTask(id, Number(tgt.card.dataset.card), tgt.after);
   renderTable();
 });
 

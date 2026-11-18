@@ -9,7 +9,7 @@
  *   people      { id, name, created_at }   (personas que pueden ser responsables)
  *   activity    { id, ts, at, user, entity, entity_id, entity_name, action, field, from, to, extra }  (bitácora)
  *   projects    { id, name, position, archived, created_at }
- *   tasks       { id, project_id, title, description, status, priority, project, assignees: [ids],
+ *   tasks       { id, project_id, position, title, description, status, priority, project, assignees: [ids],
  *                 created_by, created_at, due_at, depends_on: [ids] }
  *   comments    { id, task_id, author, body, created_at }
  *   attachments { id, task_id, kind: 'photo'|'file', name, type, size, blob,
@@ -323,6 +323,8 @@ const Api = {
       created_at: nowISO(),
       due_at: null,
       depends_on: [],
+      // Las tareas nuevas quedan al final del orden manual
+      position: (await LocalDB.all('tasks')).reduce((m, t) => Math.max(m, t.position ?? t.id), 0) + 1,
       ...fields,
     };
     await LocalDB.put('meta', { key: 'next_id', value: meta.value + 1 });

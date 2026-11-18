@@ -269,8 +269,8 @@ textarea, input { font: inherit; color: inherit; }
 }
 
 /* ---------- Basurero por fila ---------- */
-.table-wrap { margin-left: -34px; padding-left: 0; }
-th.gutter, td.gutter { width: 34px; min-width: 34px; padding: 0 4px 0 0; border: none; border-bottom: none; background: transparent !important; cursor: default; text-align: right; }
+.table-wrap { margin-left: -56px; padding-left: 0; }
+th.gutter, td.gutter { width: 56px; min-width: 56px; padding: 0 4px 0 0; border: none; border-bottom: none; background: transparent !important; cursor: default; text-align: right; }
 .row-del {
   width: 26px; height: 26px; border-radius: 4px; border: none; background: none; cursor: pointer;
   color: var(--text-3); display: inline-grid; place-items: center; opacity: 0;
@@ -545,3 +545,15 @@ th .funnel svg.line-ico { width: 13px; height: 13px; stroke: var(--accent); }
 /* Panel de tarea: líneas que separan Propiedades / Comentarios / Descripción / Archivos */
 .modal-body .divider { margin: 18px 0; }
 .section-h.first { margin-top: 0; }
+
+/* ---------- Orden manual: asa para arrastrar filas y tarjetas ---------- */
+td.gutter { white-space: nowrap; }
+.row-drag { display: inline-grid; place-items: center; width: 20px; height: 26px; color: var(--text-3); cursor: grab; opacity: 0; font-size: 12px; letter-spacing: -2px; border-radius: 4px; vertical-align: middle; user-select: none; }
+tbody tr:hover .row-drag { opacity: 1; }
+.row-drag:hover { background: var(--hover); color: var(--text-2); }
+.row-drag:active { cursor: grabbing; }
+tbody tr.dragging td { opacity: .4; }
+tbody tr.drop-above td:not(.gutter) { box-shadow: inset 0 2px 0 var(--accent); }
+tbody tr.drop-below td:not(.gutter) { box-shadow: inset 0 -2px 0 var(--accent); }
+.card.drop-above { box-shadow: 0 -3px 0 var(--accent), 0 0 0 1px rgba(15,15,15,.08); }
+.card.drop-below { box-shadow: 0 3px 0 var(--accent), 0 0 0 1px rgba(15,15,15,.08); }
