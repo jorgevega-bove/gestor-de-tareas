@@ -372,6 +372,15 @@ const Api = {
     await logActivity({ entity: 'task', entity_id: taskId, entity_name: t ? t.title : '', action: 'comment', extra: body.slice(0, 120) });
   },
 
+  async deleteComment(id) {
+    const c = await LocalDB.get('comments', id);
+    if (!c) return;
+    await History.before();
+    await LocalDB.del('comments', id);
+    const t = await LocalDB.get('tasks', c.task_id);
+    await logActivity({ entity: 'task', entity_id: c.task_id, entity_name: t ? t.title : '', action: 'uncomment', extra: c.body.slice(0, 120) });
+  },
+
   listAttachments: (taskId) => LocalDB.byTask('attachments', taskId),
   async addAttachment(taskId, file, kind, user) {
     await History.before();

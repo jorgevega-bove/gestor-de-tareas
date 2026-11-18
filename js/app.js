@@ -459,8 +459,9 @@ function renderPanel() {
     <div class="comments">
       ${state.comments.map((c) => `
         <div class="comment">
-          <div><div><span class="who">${esc(userName(c.author))}</span><span class="when">${fmt(c.created_at)}</span></div>
+          <div class="c-main"><div><span class="who">${esc(userName(c.author))}</span><span class="when">${fmt(c.created_at)}</span></div>
           <div class="body">${esc(c.body)}</div></div>
+          ${c.author === CURRENT_USER ? `<button class="c-del" data-del-comment="${c.id}" title="Eliminar comentario">×</button>` : ''}
         </div>`).join('')}
     </div>
     <div class="comment-new"><span class="tag c-gray person">${esc(me.name)}</span><input id="f-comment" placeholder="Agregar un comentario… (Enter para enviar)"></div>
@@ -930,6 +931,7 @@ function activityText(e) {
       case 'create': return `creó la tarea ${task}${e.extra ? ` en <b>${esc(e.extra)}</b>` : ''}`;
       case 'delete': return `eliminó la tarea <b>«${esc(e.entity_name || 'Sin título')}»</b>${e.extra ? ` de <b>${esc(e.extra)}</b>` : ''}`;
       case 'comment': return `comentó en ${task}: <span class="log-quote">“${esc(e.extra)}”</span>`;
+      case 'uncomment': return `eliminó un comentario de ${task}: <span class="log-quote">“${esc(e.extra)}”</span>`;
       case 'attach': return `adjuntó <b>${esc(e.extra)}</b> en ${task}`;
       case 'detach': return `eliminó el archivo <b>${esc(e.extra)}</b> de ${task}`;
       case 'update':
@@ -1247,6 +1249,17 @@ document.addEventListener('click', async (e) => {
     if (u) { URL.revokeObjectURL(u); blobUrls.delete(Number(delAtt.dataset.delAtt)); }
     state.attachments = await Api.listAttachments(state.openId);
     renderPanel();
+    return;
+  }
+
+  // Eliminar comentario (solo quien lo escribió ve la ×)
+  const dc = target.closest('[data-del-comment]');
+  if (dc) {
+    await Api.deleteComment(Number(dc.dataset.delComment));
+    state.comments = await Api.listComments(state.openId);
+    state.comments.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id);
+    renderPanel();
+    toast('Comentario eliminado');
     return;
   }
 

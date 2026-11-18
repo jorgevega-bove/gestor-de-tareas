@@ -534,3 +534,10 @@ th .funnel svg.line-ico { width: 13px; height: 13px; stroke: var(--accent); }
 .popover .opt.logout-opt { color: #d44c47; }
 .popover .opt.logout-opt:hover { background: #fdebec; }
 .p-label svg.line-ico, th .h svg.line-ico { stroke: var(--text-3); }
+
+/* ---------- Eliminar comentario ---------- */
+.comment { align-items: flex-start; }
+.comment .c-main { flex: 1; min-width: 0; }
+.c-del { border: none; background: none; color: var(--text-3); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 4px; opacity: 0; }
+.comment:hover .c-del { opacity: 1; }
+.c-del:hover { background: #fdebec; color: #d44c47; }
