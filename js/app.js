@@ -45,14 +45,14 @@ const icon = (name) => `<svg class="i" viewBox="0 0 16 16"><path d="${P[name]}"/
 
 /* ---------- Columnas ---------- */
 const COLUMNS = [
-  { key: 'code',       label: 'ID',                icon: 'id',     hidden: true,  sort: (t) => t.id },
   { key: 'title',      label: 'Tarea',             icon: 'text',   fixed: true,   sort: (t) => t.title || null },
   { key: 'status',     label: 'Estado',            icon: 'status',                sort: (t) => STATUS[t.status].order },
+  { key: 'assignees',  label: 'Responsable',       icon: 'person',                sort: (t) => assigneeNames(t) || null },
   { key: 'priority',   label: 'Prioridad',         icon: 'select',                sort: (t) => (t.priority ? PRIORITY[t.priority].order : null) },
-  { key: 'assignee',   label: 'Responsable',       icon: 'person',                sort: (t) => userName(t.assignee) },
-  { key: 'project',    label: 'Proyecto',          icon: 'select',                sort: (t) => t.project || null },
   { key: 'due_at',     label: 'Fecha límite',      icon: 'cal',                   sort: (t) => (t.due_at ? dueSortKey(t.due_at) : null) },
-  { key: 'depends_on', label: 'Depende de',        icon: 'rel',                   sort: (t) => t.depends_on.length || null },
+  { key: 'code',       label: 'ID',                icon: 'id',     hidden: true,  sort: (t) => t.id },
+  { key: 'project',    label: 'Proyecto',          icon: 'select', hidden: true,  sort: (t) => t.project || null },
+  { key: 'depends_on', label: 'Depende de',        icon: 'rel',    hidden: true,  sort: (t) => t.depends_on.length || null },
   { key: 'created_by', label: 'Creado por',        icon: 'person', hidden: true,  sort: (t) => userName(t.created_by) },
   { key: 'created_at', label: 'Fecha de creación', icon: 'clock',  hidden: true,  sort: (t) => t.created_at },
 ];
@@ -67,7 +67,7 @@ const state = {
 };
 
 const prefs = (() => {
-  try { return JSON.parse(localStorage.getItem('gt-prefs')) || {}; } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem('gt-prefs-v2')) || {}; } catch { return {}; }
 })();
 prefs.user = prefs.user || 'jorge';
 prefs.sort = prefs.sort || { key: null, dir: null };
@@ -79,7 +79,7 @@ prefs.order = [
   ...COLUMNS.map((c) => c.key).filter((k) => !(prefs.order || []).includes(k)),
 ];
 const orderedColumns = () => prefs.order.map((k) => COLUMNS.find((c) => c.key === k));
-function savePrefs() { try { localStorage.setItem('gt-prefs', JSON.stringify(prefs)); } catch {} }
+function savePrefs() { try { localStorage.setItem('gt-prefs-v2', JSON.stringify(prefs)); } catch {} }
 
 /* ---------- Utilidades ---------- */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -132,7 +132,9 @@ function dependsOn(a, targetId, seen = new Set()) {
 const pill = (map, key) => (key && map[key]
   ? `<span class="pill ${map[key].cls}">${map[key].label}</span>` : '');
 const avatar = (u) => `<span class="avatar" style="background:${u.color}">${u.name[0]}</span>`;
-const person = (id) => (user(id) ? `<span class="person">${avatar(user(id))}${esc(user(id).name)}</span>` : '');
+const person = (id) => (user(id) ? `<span class="tag c-gray person">${esc(user(id).name)}</span>` : '');
+const people = (ids) => (ids || []).filter(user).map(person).join('');
+const assigneeNames = (t) => (t.assignees || []).map(userName).filter(Boolean).join(', ');
 const projectTag = (p) => (p ? `<span class="tag t${hashIdx(p, 6)}">${esc(p)}</span>` : '');
 const depChip = (t, removable = false) =>
   `<span class="dep" data-open="${t.id}" title="${esc(t.title)}">${code(t)}</span>` +
@@ -178,7 +180,7 @@ const norm = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0
 function matchesQuery(t) {
   const q = norm(state.query).trim();
   if (!q) return true;
-  const hay = norm([t.id, t.title, t.description, t.project, userName(t.assignee), STATUS[t.status].label].join(' '));
+  const hay = norm([t.id, t.title, t.description, t.project, assigneeNames(t), STATUS[t.status].label].join(' '));
   return q.split(/\s+/).every((w) => hay.includes(w));
 }
 
@@ -211,7 +213,7 @@ function cell(col, t) {
     }
     case 'status': return `<td>${pill(STATUS, t.status)}</td>`;
     case 'priority': return `<td>${pill(PRIORITY, t.priority)}</td>`;
-    case 'assignee': return `<td>${person(t.assignee)}</td>`;
+    case 'assignees': return `<td><span class="people">${people(t.assignees)}</span></td>`;
     case 'project': return `<td>${projectTag(t.project)}</td>`;
     case 'due_at': return `<td class="${isOverdue(t) ? 'overdue' : ''}">${fmtDue(t.due_at)}</td>`;
     case 'depends_on': return `<td>${t.depends_on.map(byId).filter(Boolean).map((d) => depChip(d)).join('')}</td>`;
@@ -310,11 +312,10 @@ function pickSelect(field, map, value, allowEmpty) {
     Object.entries(map).map(([k, v]) => `<option value="${k}" ${k === value ? 'selected' : ''}>${v.label}</option>`).join('');
   return `<span class="pick">${shown}<select data-field="${field}">${opts}</select></span>`;
 }
-function pickUser(value) {
-  const shown = value ? person(value) : '<span class="empty">Vacío</span>';
-  const opts = '<option value="">Vacío</option>' +
-    USERS.map((u) => `<option value="${u.id}" ${u.id === value ? 'selected' : ''}>${u.name}</option>`).join('');
-  return `<span class="pick">${shown}<select data-field="assignee">${opts}</select></span>`;
+function pickUsers(ids) {
+  return `<span class="people">${(ids || []).filter(user).map((id) =>
+    `<span class="tag c-gray person">${esc(userName(id))}<button class="tag-x" data-remove-user="${id}" title="Quitar">×</button></span>`).join('')}</span>` +
+    `<button class="mini" id="add-user">${(ids || []).length ? '+' : 'Vacío'}</button>`;
 }
 
 function renderPanel() {
@@ -345,7 +346,7 @@ function renderPanel() {
           : ''), true)}
       ${prop('select', 'Prioridad', pickSelect('priority', PRIORITY, t.priority, true), true)}
       ${prop('select', 'Proyecto', '<input class="plain" id="f-project" list="projects" placeholder="Vacío" autocomplete="off">', true)}
-      ${prop('person', 'Responsable', pickUser(t.assignee), true)}
+      ${prop('person', 'Responsable', pickUsers(t.assignees), true)}
       ${prop('clock', 'Fecha de creación', `<span class="ro">${fmt(t.created_at)}</span>`)}
       ${prop('status', 'Estado', pickSelect('status', STATUS, t.status, false), true)}
     </div>
@@ -353,12 +354,12 @@ function renderPanel() {
     <div class="section-h">Comentarios</div>
     <div class="comments">
       ${state.comments.map((c) => `
-        <div class="comment">${avatar(user(c.author))}
+        <div class="comment">
           <div><div><span class="who">${esc(userName(c.author))}</span><span class="when">${fmt(c.created_at)}</span></div>
           <div class="body">${esc(c.body)}</div></div>
         </div>`).join('')}
     </div>
-    <div class="comment-new">${avatar(me)}<input id="f-comment" placeholder="Agregar un comentario… (Enter para enviar)"></div>
+    <div class="comment-new"><span class="tag c-gray person">${esc(me.name)}</span><input id="f-comment" placeholder="Agregar un comentario… (Enter para enviar)"></div>
 
     <div class="divider"></div>
     <textarea class="desc" id="f-desc" placeholder="Escribe aquí los detalles de la tarea…"></textarea>
@@ -481,6 +482,15 @@ function openDepPicker(anchor) {
   s.oninput = () => { $('#dep-opts').innerHTML = list(s.value); };
 }
 
+function openUsersMenu(anchor) {
+  const t = byId(state.openId);
+  openPopover(anchor, `<div class="title">Responsables</div>` + USERS.map((u) => `
+    <div class="opt" data-toggle-user="${u.id}"><span class="tag c-gray person">${esc(u.name)}</span>
+      <span style="margin-left:auto;color:var(--accent)">${t.assignees.includes(u.id) ? '✓' : ''}</span></div>`).join(''));
+  pop().dataset.kind = 'users';
+  pop().style.minWidth = '220px';
+}
+
 function openColumnsMenu(anchor) {
   const render = () => `<div class="title">Propiedades visibles en la tabla</div>` +
     orderedColumns().filter((c) => !c.fixed).map((c) => `
@@ -523,7 +533,7 @@ async function deleteTask(id) {
 function renderUsers() {
   $('#users').innerHTML = USERS.map((u) => `
     <button class="user-btn ${u.id === prefs.user ? 'active' : ''}" data-user="${u.id}">
-      ${avatar(u)}${u.name}${u.id === prefs.user ? '<span class="check">✓</span>' : ''}
+      ${u.name}${u.id === prefs.user ? '<span class="check">✓</span>' : ''}
     </button>`).join('');
 }
 
@@ -547,6 +557,17 @@ document.addEventListener('click', async (e) => {
     renderTable(); renderPanel();
     return;
   }
+  const userOpt = target.closest('[data-toggle-user]');
+  if (userOpt) {
+    const t = byId(state.openId);
+    const id = userOpt.dataset.toggleUser;
+    const list = t.assignees.includes(id) ? t.assignees.filter((x) => x !== id) : [...t.assignees, id];
+    t.assignees = USERS.map((u) => u.id).filter((x) => list.includes(x));
+    await Api.saveTask(t);
+    renderTable(); renderPanel();
+    openUsersMenu($('#add-user'));
+    return;
+  }
   const colOpt = target.closest('[data-toggle-col]');
   if (colOpt) {
     const k = colOpt.dataset.toggleCol;
@@ -557,7 +578,7 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if (pop().contains(target)) return;
-  if (pop().classList.contains('open') && !target.closest('#add-dep, #cols-tool')) { closePopover(); }
+  if (pop().classList.contains('open') && !target.closest('#add-dep, #cols-tool, #add-user')) { closePopover(); }
 
   // Borrar adjunto (antes que el enlace de descarga)
   const delAtt = target.closest('[data-del-att]');
@@ -589,6 +610,15 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if (target.closest('#clear-due')) { state.addingTime = false; await updateTask({ due_at: null }); return; }
+  if (target.closest('#add-user')) { openUsersMenu(target.closest('#add-user')); return; }
+  const rmUser = target.closest('[data-remove-user]');
+  if (rmUser) {
+    const t = byId(state.openId);
+    t.assignees = t.assignees.filter((x) => x !== rmUser.dataset.removeUser);
+    await Api.saveTask(t);
+    renderTable(); renderPanel();
+    return;
+  }
   if (target.closest('#add-dep')) { openDepPicker(target.closest('#add-dep')); return; }
   if (target.closest('#cols-tool')) { openColumnsMenu(target.closest('#cols-tool')); return; }
   if (target.closest('#search-tool')) { $('#search-box').classList.add('open'); $('#search').focus(); return; }
@@ -634,7 +664,7 @@ document.addEventListener('click', async (e) => {
   // Nueva tarea
   const lane = target.closest('[data-new-in]');
   if (target.closest('#new-task, #add-row') || lane) {
-    const t = await Api.createTask({ created_by: prefs.user, assignee: prefs.user, status: lane ? lane.dataset.newIn : 'todo' });
+    const t = await Api.createTask({ created_by: prefs.user, assignees: [prefs.user], status: lane ? lane.dataset.newIn : 'todo' });
     state.tasks.push(t);
     renderTable();
     await openTask(t.id);
@@ -843,6 +873,14 @@ board.addEventListener('drop', async (e) => {
   try {
     await Api.ensureSeed(SEED);
     state.tasks = await Api.listTasks();
+    // Migración: antes había un solo responsable (assignee); ahora pueden ser varios (assignees)
+    for (const t of state.tasks) {
+      if (!Array.isArray(t.assignees)) {
+        t.assignees = t.assignee ? [t.assignee] : [];
+        delete t.assignee;
+        await Api.saveTask(t);
+      }
+    }
   } catch (err) {
     document.body.innerHTML = `<p style="padding:40px">No se pudo abrir la base de datos local: ${esc(err.message)}</p>`;
     return;

@@ -305,3 +305,11 @@ th.drop-after { box-shadow: inset -3px 0 0 var(--accent); }
 .p-val input.due-time { margin-left: 10px; }
 .p-val #add-time, .p-val #clear-due { margin-left: 8px; }
 .tool[hidden] { display: none; }
+
+/* ---------- Personas (contenedor gris) ---------- */
+.people { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.tag.person { gap: 2px; align-items: center; }
+.tag-x { border: none; background: none; padding: 0 0 0 2px; margin: 0; cursor: pointer; color: #91918e; font-size: 13px; line-height: 1; }
+.tag-x:hover { color: var(--text); }
+.p-val .people + .mini { margin-left: 6px; }
+.comment-new .tag { flex-shrink: 0; }

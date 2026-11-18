@@ -6,7 +6,7 @@
  * las mismas funciones contra Supabase, y el resto de la app no cambia.
  *
  * Modelo de datos (pensado para que calce con tablas de Supabase):
- *   tasks       { id, title, description, status, priority, project, assignee,
+ *   tasks       { id, title, description, status, priority, project, assignees: [ids],
  *                 created_by, created_at, due_at, depends_on: [ids] }
  *   comments    { id, task_id, author, body, created_at }
  *   attachments { id, task_id, kind: 'photo'|'file', name, type, size, blob,
@@ -93,7 +93,7 @@ const Api = {
       status: 'todo',
       priority: null,
       project: null,
-      assignee: null,
+      assignees: [],
       created_by: null,
       created_at: nowISO(),
       due_at: null,
