@@ -87,8 +87,9 @@ prefs.order = [
 ];
 // Anchos de columna (px). Se pueden cambiar arrastrando el borde del encabezado.
 const DEFAULT_WIDTHS = { title: 320, status: 170, assignees: 190, priority: 120, due_at: 160,
-  code: 70, project_id: 140, depends_on: 150, created_by: 140, created_at: 160 };
+  code: 90, project_id: 140, depends_on: 150, created_by: 140, created_at: 160 };
 prefs.widths = { ...DEFAULT_WIDTHS, ...(prefs.widths || {}) };
+if (prefs.widths.code < 90) prefs.widths.code = 90; // la columna ID era muy angosta para arrastrarla
 const MIN_WIDTH = 60;
 const orderedColumns = () => prefs.order.map((k) => COLUMNS.find((c) => c.key === k));
 function savePrefs() { try { localStorage.setItem('gt-prefs-v2', JSON.stringify(prefs)); } catch {} }
@@ -1190,7 +1191,16 @@ document.addEventListener('click', async (e) => {
   const colOpt = target.closest('[data-toggle-col]');
   if (colOpt) {
     const k = colOpt.dataset.toggleCol;
-    prefs.hidden = prefs.hidden.includes(k) ? prefs.hidden.filter((x) => x !== k) : [...prefs.hidden, k];
+    if (prefs.hidden.includes(k)) {
+      // Al mostrar una columna, aparece al final (a la derecha) de las columnas visibles
+      const lastVisible = visibleColumns().map((c) => c.key).pop();
+      const order = prefs.order.filter((x) => x !== k);
+      order.splice(order.indexOf(lastVisible) + 1, 0, k);
+      prefs.order = order;
+      prefs.hidden = prefs.hidden.filter((x) => x !== k);
+    } else {
+      prefs.hidden = [...prefs.hidden, k];
+    }
     savePrefs();
     colOpt.querySelector('.switch').classList.toggle('on');
     renderTable();
