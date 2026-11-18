@@ -759,12 +759,14 @@ async function deleteTask(id) {
 }
 
 /* ---------- Proyectos (barra lateral) ---------- */
+const TRASH_ICON = '<svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.25h11M6.25 4.25V2.75h3.5v1.5M3.75 4.25l.6 8.6a1 1 0 0 0 1 .9h5.3a1 1 0 0 0 1-.9l.6-8.6M6.75 7v4M9.25 7v4"/></svg>';
 const ARCHIVE_ICON = '<svg class="i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.75" y="2.5" width="12.5" height="3.25" rx="1"/><path d="M2.75 5.75v6.75a1 1 0 0 0 1 1h8.5a1 1 0 0 0 1-1V5.75M6.5 8.5h3"/></svg>';
 function renderSidebar() {
   const item = (p) => `
     <div class="side-item proj ${p.id === prefs.project ? 'active' : ''}" data-project="${p.id}" draggable="true">
       <span class="proj-name">${esc(p.name)}</span>
       <button class="proj-archive" data-archive="${p.id}" title="${p.archived ? 'Desarchivar proyecto' : 'Archivar proyecto'}">${ARCHIVE_ICON}</button>
+      <button class="proj-archive proj-delete" data-delete-project="${p.id}" title="Eliminar proyecto">${TRASH_ICON}</button>
     </div>`;
   const active = state.projects.filter((p) => !p.archived);
   const archived = state.projects.filter((p) => p.archived);
@@ -786,6 +788,43 @@ function selectProject(id) {
   savePrefs();
   renderSidebar();
   renderTable();
+}
+
+/* ---------- Eliminar proyecto (con confirmación) ---------- */
+function confirmDeleteProject(id) {
+  const p = projectById(id);
+  if (state.projects.length === 1) { toast('Debe quedar al menos un proyecto'); return; }
+  const n = state.tasks.filter((t) => t.project_id === p.id).length;
+  $('#confirm-body').innerHTML = `
+    <h3>¿Eliminar el proyecto «${esc(p.name)}»?</h3>
+    <p>${n ? `Se eliminarán también sus <b>${n} tarea${n > 1 ? 's' : ''}</b>, con sus comentarios y archivos adjuntos.` : 'El proyecto no tiene tareas.'}
+    Esta acción no se puede deshacer.</p>
+    <div class="confirm-actions">
+      <button class="btn-cancel" data-confirm-cancel>Cancelar</button>
+      <button class="btn-danger" data-confirm-delete="${p.id}">Eliminar proyecto</button>
+    </div>`;
+  $('#confirm').classList.add('open');
+  $('[data-confirm-cancel]').focus();
+}
+const closeConfirm = () => $('#confirm').classList.remove('open');
+
+async function deleteProject(id) {
+  const p = projectById(id);
+  const removed = state.tasks.filter((t) => t.project_id === id).map((t) => t.id);
+  // Tareas de otros proyectos que dependían de las que se eliminan
+  const affected = state.tasks.filter((t) => t.project_id !== id && t.depends_on.some((d) => removed.includes(d)));
+  await Api.deleteProject(id);
+  state.projects = await Api.listProjects();
+  state.tasks = await Api.listTasks();
+  for (const t of affected) await releaseIfFree(byId(t.id), true);
+  if (state.openId && removed.includes(state.openId)) closeTask();
+  if (prefs.project === id) {
+    prefs.project = (state.projects.find((x) => !x.archived) || state.projects[0]).id;
+    savePrefs();
+  }
+  closeConfirm();
+  renderTable();
+  toast(`Proyecto ${p.name} eliminado`);
 }
 
 /* ---------- Renombrar proyecto (clic en el título) ---------- */
@@ -1079,6 +1118,12 @@ document.addEventListener('click', async (e) => {
     renderSidebar();
     return;
   }
+  // Eliminar proyecto: primero se pide confirmación
+  const dp = target.closest('[data-delete-project]');
+  if (dp) { confirmDeleteProject(Number(dp.dataset.deleteProject)); return; }
+  const cd = target.closest('[data-confirm-delete]');
+  if (cd) { await deleteProject(Number(cd.dataset.confirmDelete)); return; }
+  if (target.closest('[data-confirm-cancel]') || target.id === 'confirm') { closeConfirm(); return; }
   const ar = target.closest('[data-archive]');
   if (ar) {
     const p = projectById(ar.dataset.archive);
@@ -1171,6 +1216,7 @@ document.addEventListener('input', (e) => {
 });
 
 document.addEventListener('keydown', async (e) => {
+  if (e.key === 'Escape' && $('#confirm').classList.contains('open')) { closeConfirm(); return; }
   if (e.key === 'Escape' && (e.target.id === 'new-project-input' || e.target.id === 'page-title')) { /* lo maneja abajo */ }
   else if (e.key === 'Escape') {
     if (e.target.id === 'search') return clearSearch();

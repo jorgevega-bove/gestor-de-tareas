@@ -142,6 +142,14 @@ const Api = {
     return person;
   },
 
+  // Elimina el proyecto con todas sus tareas (y sus comentarios y archivos)
+  async deleteProject(id) {
+    for (const t of await LocalDB.all('tasks')) {
+      if (t.project_id === id) await this.deleteTask(t.id);
+    }
+    await LocalDB.del('projects', id);
+  },
+
   async setProjectArchived(id, archived) {
     const p = await LocalDB.get('projects', id);
     p.archived = archived;

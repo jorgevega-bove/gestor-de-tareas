@@ -432,3 +432,18 @@ h1#page-title.static:hover { background: none; }
 .popover .opt.locked { color: var(--text-3); cursor: default; }
 .popover .opt.locked:hover { background: none; }
 .switch.locked { opacity: .5; }
+
+/* ---------- Eliminar proyecto ---------- */
+.proj-archive + .proj-delete { margin-left: 0; }
+.proj-delete:hover { color: var(--danger); background: #fdebec; }
+.confirm-overlay { position: fixed; inset: 0; background: rgba(15,15,15,.45); z-index: 60; display: none; align-items: center; justify-content: center; padding: 24px; }
+.confirm-overlay.open { display: flex; }
+.confirm-box { background: #fff; border-radius: 10px; max-width: 420px; width: 100%; padding: 22px 24px 18px; box-shadow: 0 15px 40px rgba(15,15,15,.25); animation: pop .14s ease-out; }
+.confirm-box h3 { margin: 0 0 8px; font-size: 17px; }
+.confirm-box p { margin: 0 0 18px; color: var(--text-2); line-height: 1.5; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.btn-cancel, .btn-danger { border-radius: 6px; padding: 6px 14px; font: inherit; font-weight: 500; cursor: pointer; }
+.btn-cancel { border: 1px solid var(--border); background: #fff; color: var(--text); }
+.btn-cancel:hover { background: var(--row-hover); }
+.btn-danger { border: none; background: var(--danger); color: #fff; }
+.btn-danger:hover { background: #d64545; }
