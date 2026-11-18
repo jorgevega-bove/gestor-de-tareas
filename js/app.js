@@ -67,7 +67,9 @@ const state = {
 const prefs = (() => {
   try { return JSON.parse(localStorage.getItem('gt-prefs-v2')) || {}; } catch { return {}; }
 })();
-prefs.user = prefs.user || 'jorge';
+// Usuario actual: por ahora la maqueta la usa solo Jorge (el sistema de cuentas viene después)
+const CURRENT_USER = 'jorge';
+delete CURRENT_USER;
 prefs.sort = prefs.sort || { key: null, dir: null };
 prefs.view = prefs.view || 'table';
 prefs.filters = prefs.filters || {};
@@ -430,7 +432,7 @@ function renderPanel() {
   const scroll = overlay.scrollTop;
   const deps = t.depends_on.map(byId).filter(Boolean);
   const files = state.attachments;
-  const me = user(prefs.user);
+  const me = user(CURRENT_USER);
 
   $('#modal-body').innerHTML = `
     <div class="m-code">ID ${code(t)}</div>
@@ -526,7 +528,7 @@ async function updateTask(patch, { rerenderPanel = true } = {}) {
 async function addFiles(fileList) {
   const t = byId(state.openId);
   if (!t || !fileList.length) return;
-  for (const f of fileList) await Api.addAttachment(t.id, f, 'file', prefs.user);
+  for (const f of fileList) await Api.addAttachment(t.id, f, 'file', CURRENT_USER);
   state.attachments = await Api.listAttachments(t.id);
   renderPanel();
   toast(fileList.length === 1 ? 'Archivo agregado' : `${fileList.length} archivos agregados`);
@@ -814,14 +816,6 @@ async function createProject(name) {
   toast(`Proyecto ${name} creado`);
 }
 
-/* ---------- Usuario actual ---------- */
-function renderUsers() {
-  $('#users').innerHTML = USERS.map((u) => `
-    <button class="user-btn ${u.id === prefs.user ? 'active' : ''}" data-user="${u.id}">
-      ${u.name}${u.id === prefs.user ? '<span class="check">✓</span>' : ''}
-    </button>`).join('');
-}
-
 /* ============================================================
  *  Eventos
  * ============================================================ */
@@ -885,7 +879,6 @@ document.addEventListener('click', async (e) => {
     t.assignees = USERS.map((u) => u.id).filter((x) => [...t.assignees, person.id].includes(x));
     await Api.saveTask(t);
     $('#um-search').value = '';
-    renderUsers();
     refreshTask(t.id);
     renderUserOpts();
     $('#um-search').focus();
@@ -1044,7 +1037,7 @@ document.addEventListener('click', async (e) => {
   // Nueva tarea
   const lane = target.closest('[data-new-in]');
   if (target.closest('#new-task, #add-row') || lane) {
-    const t = await Api.createTask({ project_id: prefs.project, created_by: prefs.user, assignees: [prefs.user], status: lane ? lane.dataset.newIn : 'todo' });
+    const t = await Api.createTask({ project_id: prefs.project, created_by: CURRENT_USER, assignees: [CURRENT_USER], status: lane ? lane.dataset.newIn : 'todo' });
     state.tasks.push(t);
     renderTable();
     await openTask(t.id);
@@ -1085,8 +1078,6 @@ document.addEventListener('click', async (e) => {
   }
 
   // Cambiar usuario
-  const ub = target.closest('[data-user]');
-  if (ub) { prefs.user = ub.dataset.user; savePrefs(); renderUsers(); if (state.openId) renderPanel(); return; }
 
   // Restablecer datos
   if (target.closest('#reset')) {
@@ -1099,7 +1090,6 @@ document.addEventListener('click', async (e) => {
     }
     await Api.resetAll(SEED);
     USERS = await Api.listPeople();
-    renderUsers();
     state.tasks = await Api.listTasks();
     state.projects = await Api.listProjects();
     prefs.project = state.projects[0].id; savePrefs();
@@ -1187,7 +1177,7 @@ document.addEventListener('keydown', async (e) => {
   }
   if (e.target.id === 'f-title' && e.key === 'Enter') { e.preventDefault(); $('#f-desc').focus(); }
   if (e.target.id === 'f-comment' && e.key === 'Enter' && e.target.value.trim()) {
-    await Api.addComment(state.openId, prefs.user, e.target.value.trim());
+    await Api.addComment(state.openId, CURRENT_USER, e.target.value.trim());
     state.comments = await Api.listComments(state.openId);
     renderPanel();
     $('#f-comment').focus();
@@ -1404,7 +1394,6 @@ board.addEventListener('drop', async (e) => {
     return;
   }
   if (!projectById(prefs.project)) { prefs.project = state.projects[0].id; savePrefs(); }
-  renderUsers();
   renderSidebar();
   renderTable();
 })();

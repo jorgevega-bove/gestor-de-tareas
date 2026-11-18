@@ -19,7 +19,7 @@ Por ahora los datos se guardan en el navegador (IndexedDB), así que cada comput
 - Búsqueda por título, texto, ID, proyecto o responsable (Cmd+F).
 - Panel de detalle con propiedades, comentarios, texto libre y archivos adjuntos (arrastrar al panel para adjuntar).
 - Dependencias entre tareas, con cambio automático de estado cuando se completan.
-- Usuarios de prueba: Jorge, Francisco y Ulises.
+- Por ahora la app se usa como Jorge; Francisco, Ulises y otras personas se pueden asignar como responsables.
 
 ## Estados
 

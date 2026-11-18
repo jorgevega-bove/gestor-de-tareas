@@ -415,3 +415,4 @@ svg.view-ico { fill: none; width: 16px; height: 16px; }
 #archived-list .proj { color: var(--text-3); }
 #archived-list .proj.active { color: var(--text); }
 .side-empty { color: var(--text-3); font-size: 13px; padding: 4px 8px; }
+.side-foot { padding: 8px 0 0; border-top: 1px solid var(--border); }
