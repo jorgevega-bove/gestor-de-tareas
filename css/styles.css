@@ -64,7 +64,7 @@ h1 { font-size: 40px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em
 .view-tab.active { color: var(--text); font-weight: 500; border-bottom-color: var(--text); }
 
 /* ---------- Tablero (Kanban) ---------- */
-.board { display: flex; gap: 12px; overflow-x: auto; padding: 14px 0 20px; align-items: flex-start; }
+.board { display: flex; gap: 12px; overflow-x: auto; padding: 14px 0 20px; align-items: stretch; }
 .board[hidden] { display: none; }
 .lane { width: 220px; flex-shrink: 0; border-radius: 8px; padding: 6px; min-height: 120px; transition: background .1s; }
 .lane-h { display: flex; align-items: center; gap: 8px; padding: 4px 4px 10px; }
