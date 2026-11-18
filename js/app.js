@@ -1074,7 +1074,7 @@ document.addEventListener('click', async (e) => {
     await Api.setProjectArchived(p.id, !p.archived);
     state.projects = await Api.listProjects();
     renderSidebar();
-    toast(p.archived ? `${p.name} archivado` : `${p.name} vuelve a proyectos en curso`);
+    toast(projectById(p.id).archived ? `${p.name} archivado` : `${p.name} vuelve a proyectos en curso`);
     return;
   }
   const pj = target.closest('[data-project]');
