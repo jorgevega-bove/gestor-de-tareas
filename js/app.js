@@ -80,6 +80,11 @@ prefs.order = [
   ...(prefs.order || []).filter((k) => COLUMNS.some((c) => c.key === k)),
   ...COLUMNS.map((c) => c.key).filter((k) => !(prefs.order || []).includes(k)),
 ];
+// Anchos de columna (px). Se pueden cambiar arrastrando el borde del encabezado.
+const DEFAULT_WIDTHS = { title: 320, status: 170, assignees: 190, priority: 120, due_at: 160,
+  code: 70, project_id: 140, depends_on: 150, created_by: 140, created_at: 160 };
+prefs.widths = { ...DEFAULT_WIDTHS, ...(prefs.widths || {}) };
+const MIN_WIDTH = 60;
 const orderedColumns = () => prefs.order.map((k) => COLUMNS.find((c) => c.key === k));
 function savePrefs() { try { localStorage.setItem('gt-prefs-v2', JSON.stringify(prefs)); } catch {} }
 
@@ -173,8 +178,8 @@ const FILTERS = {
 const activeFilters = () => Object.entries(prefs.filters).filter(([k, v]) => FILTERS[k] && v.length);
 const matchesFilters = (t) => activeFilters().every(([k, sel]) => FILTERS[k].values(t).some((v) => sel.includes(v)));
 const isFiltering = () => !!state.query.trim() || activeFilters().length > 0;
-const depChip = (t, removable = false) =>
-  `<span class="dep" data-open="${t.id}" title="${esc(t.title)}">${code(t)}</span>` +
+const depChip = (t, removable = false, link = true) =>
+  `<span class="dep" ${link ? `data-open="${t.id}"` : ''} title="${esc(t.title)}">${code(t)}</span>` +
   (removable ? `<button class="mini dep-x" data-remove-dep="${t.id}" title="Quitar">×</button>` : '');
 
 /* ============================================================
@@ -241,19 +246,21 @@ function sortedTasks() {
   });
 }
 
+const EDITABLE = ['title', 'status', 'priority', 'assignees', 'project_id', 'due_at', 'depends_on'];
 function cell(col, t) {
+  const ed = EDITABLE.includes(col.key) ? ` data-cell="${col.key}"` : '';
   switch (col.key) {
     case 'code': return `<td class="c-code">${code(t)}</td>`;
     case 'title': {
       const title = t.title ? esc(t.title) : '<span class="untitled">Sin título</span>';
-      return `<td class="c-title"><div class="t">${title}<span class="open">ABRIR</span></div></td>`;
+      return `<td class="c-title"${ed}><div class="t"><span class="t-text">${title}</span><button class="open" data-open="${t.id}" title="Abrir el panel de la tarea">ABRIR</button></div></td>`;
     }
-    case 'status': return `<td>${pill(STATUS, t.status)}</td>`;
-    case 'priority': return `<td>${pill(PRIORITY, t.priority)}</td>`;
-    case 'assignees': return `<td><span class="people">${people(t.assignees)}</span></td>`;
-    case 'project_id': return `<td>${projectTag(t.project_id)}</td>`;
-    case 'due_at': return `<td class="${isOverdue(t) ? 'overdue' : ''}">${fmtDue(t.due_at)}</td>`;
-    case 'depends_on': return `<td>${t.depends_on.map(byId).filter(Boolean).map((d) => depChip(d)).join('')}</td>`;
+    case 'status': return `<td${ed}>${pill(STATUS, t.status)}</td>`;
+    case 'priority': return `<td${ed}>${pill(PRIORITY, t.priority)}</td>`;
+    case 'assignees': return `<td${ed}><span class="people">${people(t.assignees)}</span></td>`;
+    case 'project_id': return `<td${ed}>${projectTag(t.project_id)}</td>`;
+    case 'due_at': return `<td${ed} class="${isOverdue(t) ? 'overdue' : ''}">${fmtDue(t.due_at)}</td>`;
+    case 'depends_on': return `<td${ed}>${t.depends_on.map(byId).filter(Boolean).map((d) => depChip(d, false, false)).join('')}</td>`;
     case 'created_by': return `<td>${person(t.created_by)}</td>`;
     case 'created_at': return `<td>${fmt(t.created_at)}</td>`;
   }
@@ -298,14 +305,17 @@ async function setStatus(t, status) {
 function renderTableView() {
   const cols = visibleColumns();
   const { key, dir } = prefs.sort;
+  $('#colgroup').innerHTML = `<col style="width:34px">` + cols.map((c) => `<col data-w="${c.key}" style="width:${prefs.widths[c.key]}px">`).join('');
+  $('#task-table').style.width = `${34 + cols.reduce((n, c) => n + prefs.widths[c.key], 0)}px`;
   $('#thead').innerHTML = `<tr><th class="gutter"></th>${cols.map((c) => `
     <th data-head="${c.key}" data-col="${c.key}" draggable="true" class="${c.key === key ? 'sorted' : ''} ${(prefs.filters[c.key] || []).length ? 'filtered' : ''}" title="Clic para ordenar o filtrar · arrastra para mover">
       <div class="h">${icon(c.icon)}${c.label}<span class="arrow">${(prefs.filters[c.key] || []).length ? '<span class="funnel">⏷</span>' : ''}${c.key === key ? (dir === 'asc' ? '↑' : '↓') : ''}</span></div>
+      <span class="col-resize" data-resize="${c.key}" title="Arrastra para cambiar el ancho"></span>
     </th>`).join('')}</tr>`;
   const shown = sortedTasks();
   $('#rows').innerHTML = shown.length ? '' : `<tr class="no-results"><td></td><td colspan="${cols.length}">${state.tasks.some((t) => t.project_id === prefs.project) ? 'Ninguna tarea coincide con la búsqueda o los filtros' : 'Este proyecto todavía no tiene tareas'}</td></tr>`;
   $('#rows').innerHTML += shown.map((t) =>
-    `<tr data-open="${t.id}"><td class="gutter"><button class="row-del" data-del-task="${t.id}" title="Eliminar tarea">${icon('trash')}</button></td>${cols.map((c) => cell(c, t)).join('')}</tr>`).join('');
+    `<tr data-row="${t.id}"><td class="gutter"><button class="row-del" data-del-task="${t.id}" title="Eliminar tarea">${icon('trash')}</button></td>${cols.map((c) => cell(c, t)).join('')}</tr>`).join('');
   const total = state.tasks.filter((t) => t.project_id === prefs.project).length;
   $('#count').textContent = isFiltering() ? `${shown.length} de ${total}` : total;
   renderFilterBar();
@@ -547,8 +557,8 @@ function openPopover(anchor, html) {
 }
 function closePopover() { pop().classList.remove('open'); pop().dataset.kind = ''; }
 
-function openDepPicker(anchor) {
-  const t = byId(state.openId);
+function openDepPicker(anchor, taskId = state.openId) {
+  const t = byId(taskId);
   const candidates = () => state.tasks
     .filter((x) => x.id !== t.id && !t.depends_on.includes(x.id) && !dependsOn(x, t.id))
     .sort((a, b) => a.id - b.id);
@@ -559,23 +569,105 @@ function openDepPicker(anchor) {
       <span style="margin-left:auto">${pill(STATUS, x.status)}</span></div>`).join('')
       : '<div class="title">No hay tareas disponibles</div>';
   };
+  const current = t.depends_on.map(byId).filter(Boolean);
   openPopover(anchor, `<div class="title">Esta tarea depende de…</div>
+    ${current.length ? `<div class="pop-current">${current.map((d) =>
+      `<span class="tag c-gray person">${code(d)} · ${esc(d.title || 'Sin título')}<button class="tag-x" data-pop-rm-dep="${d.id}" title="Quitar">×</button></span>`).join('')}</div>` : ''}
     <input class="search" id="dep-search" placeholder="Buscar tarea">
     <div class="opts" id="dep-opts">${list('')}</div>`);
   pop().dataset.kind = 'deps';
+  pop().dataset.task = t.id;
   pop().style.minWidth = '380px';
   const s = $('#dep-search');
   s.focus();
   s.oninput = () => { $('#dep-opts').innerHTML = list(s.value); };
 }
 
-function openUsersMenu(anchor) {
-  const t = byId(state.openId);
-  openPopover(anchor, `<div class="title">Responsables</div>` + USERS.map((u) => `
-    <div class="opt" data-toggle-user="${u.id}"><span class="tag c-gray person">${esc(u.name)}</span>
-      <span style="margin-left:auto;color:var(--accent)">${t.assignees.includes(u.id) ? '✓' : ''}</span></div>`).join(''));
+const usersMenuHtml = (t) => `<div class="title">Responsables</div>` + USERS.map((u) => `
+    <div class="opt" data-toggle-user="${u.id}"><span class="cb ${t.assignees.includes(u.id) ? 'on' : ''}"></span><span class="tag c-gray person">${esc(u.name)}</span></div>`).join('');
+function openUsersMenu(anchor, taskId = state.openId) {
+  const t = byId(taskId);
+  openPopover(anchor, usersMenuHtml(t));
   pop().dataset.kind = 'users';
+  pop().dataset.task = t.id;
   pop().style.minWidth = '220px';
+}
+
+/* ---------- Edición directa en la tabla ---------- */
+const popTask = () => byId(Number(pop().dataset.task));
+function refreshTask(id) {
+  renderTable();
+  if (state.openId === id) renderPanel();
+}
+
+function openCellSelect(anchor, taskId, field) {
+  const t = byId(taskId);
+  let opts = [];
+  if (field === 'status') opts = Object.keys(STATUS).map((k) => [k, pill(STATUS, k)]);
+  if (field === 'priority') opts = [...Object.keys(PRIORITY).map((k) => [k, pill(PRIORITY, k)]), ['', EMPTY]];
+  if (field === 'project_id') opts = state.projects.map((p) => [String(p.id), projectTag(p.id)]);
+  const cur = String(t[field] ?? '');
+  openPopover(anchor, `<div class="opts">${opts.map(([v, h]) => `
+    <div class="opt" data-set-val="${esc(v)}">${h}<span class="chk">${v === cur ? '✓' : ''}</span></div>`).join('')}</div>`);
+  Object.assign(pop().dataset, { kind: 'cellselect', task: taskId, field });
+  pop().style.minWidth = '220px';
+}
+
+function openCellDate(anchor, taskId) {
+  const t = byId(taskId);
+  openPopover(anchor, `<div class="title">Fecha límite</div>
+    <div class="date-pop"><input type="date" id="pd-date"><input type="time" id="pd-time" title="Hora (opcional)"></div>
+    <div class="date-hint">La hora es opcional</div>
+    <div id="pd-foot">${t.due_at ? '<div class="opt muted-opt" data-pd-clear>✕&nbsp; Quitar fecha</div>' : ''}</div>`);
+  Object.assign(pop().dataset, { kind: 'date', task: taskId });
+  pop().style.minWidth = '260px';
+  $('#pd-date').value = t.due_at ? t.due_at.split('T')[0] : '';
+  $('#pd-time').value = hasTime(t.due_at) ? t.due_at.split('T')[1] : '';
+  $('#pd-date').focus();
+}
+
+async function saveCellDate() {
+  const t = popTask();
+  const d = $('#pd-date').value, tm = $('#pd-time').value;
+  t.due_at = d ? d + (tm ? `T${tm}` : '') : null;
+  await Api.saveTask(t);
+  $('#pd-foot').innerHTML = t.due_at ? '<div class="opt muted-opt" data-pd-clear>✕&nbsp; Quitar fecha</div>' : '';
+  refreshTask(t.id);
+}
+
+function editTitle(td, taskId) {
+  const t = byId(taskId);
+  const span = td.querySelector('.t-text');
+  span.innerHTML = '<input class="cell-input" id="cell-title" placeholder="Sin título">';
+  const inp = $('#cell-title');
+  inp.value = t.title;
+  inp.focus();
+  inp.setSelectionRange(inp.value.length, inp.value.length);
+  let done = false;
+  const finish = async (save) => {
+    if (done) return;
+    done = true;
+    if (save && inp.value.trim() !== t.title) {
+      t.title = inp.value.trim();
+      await Api.saveTask(t);
+    }
+    refreshTask(t.id);
+  };
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false); }
+  });
+  inp.addEventListener('blur', () => finish(true));
+}
+
+function editCell(td) {
+  const id = Number(td.closest('tr').dataset.row);
+  const key = td.dataset.cell;
+  if (key === 'title') return editTitle(td, id);
+  if (['status', 'priority', 'project_id'].includes(key)) return openCellSelect(td, id, key);
+  if (key === 'assignees') return openUsersMenu(td, id);
+  if (key === 'due_at') return openCellDate(td, id);
+  if (key === 'depends_on') return openDepPicker(td, id);
 }
 
 function openColumnsMenu(anchor) {
@@ -620,11 +712,11 @@ async function deleteTask(id) {
 function renderSidebar() {
   $('#project-list').innerHTML = state.projects.map((p) => {
     const open = state.tasks.filter((t) => t.project_id === p.id && t.status !== 'done').length;
-    return `<button class="side-item proj ${p.id === prefs.project ? 'active' : ''}" data-project="${p.id}">
+    return `<button class="side-item proj ${p.id === prefs.project ? 'active' : ''}" data-project="${p.id}" draggable="true" title="Arrastra para cambiar el orden">
       <span class="proj-name">${esc(p.name)}</span>${open ? `<span class="side-n">${open}</span>` : ''}</button>`;
   }).join('');
   const current = projectById(prefs.project);
-  $('#page-title').textContent = current ? current.name : '';
+  if (!$('#page-title').isContentEditable) $('#page-title').textContent = current ? current.name : '';
   document.title = current ? `${current.name} · BOVE` : 'BOVE';
 }
 
@@ -634,6 +726,35 @@ function selectProject(id) {
   savePrefs();
   renderSidebar();
   renderTable();
+}
+
+/* ---------- Renombrar proyecto (clic en el título) ---------- */
+function startRenameProject() {
+  const h = $('#page-title');
+  if (h.isContentEditable) return;
+  h.contentEditable = 'plaintext-only';
+  h.focus();
+  const range = document.createRange();
+  range.selectNodeContents(h);
+  range.collapse(false);
+  const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
+}
+async function finishRenameProject(save) {
+  const h = $('#page-title');
+  if (!h.isContentEditable) return;
+  h.contentEditable = 'false';
+  const p = projectById(prefs.project);
+  const name = h.textContent.replace(/\s+/g, ' ').trim();
+  if (save && name && name !== p.name) {
+    if (state.projects.some((x) => x.id !== p.id && norm(x.name) === norm(name))) {
+      toast(`Ya existe un proyecto llamado ${name}`);
+    } else {
+      await Api.renameProject(p.id, name);
+      p.name = name;
+      toast('Proyecto renombrado');
+    }
+  }
+  renderSidebar();
 }
 
 async function createProject(name) {
@@ -663,26 +784,55 @@ document.addEventListener('click', async (e) => {
   const target = e.target;
 
   // Popover: clics dentro
+  const sv = target.closest('[data-set-val]');
+  if (sv) {
+    const t = popTask();
+    const field = pop().dataset.field;
+    const v = sv.dataset.setVal;
+    closePopover();
+    if (field === 'status') await setStatus(t, v);
+    else if (field === 'project_id') {
+      t.project_id = Number(v); await Api.saveTask(t);
+      if (t.project_id !== prefs.project) toast(`Tarea movida a ${projectName(t.project_id)}`);
+    } else { t[field] = v || null; await Api.saveTask(t); }
+    refreshTask(t.id);
+    return;
+  }
+  if (target.closest('[data-pd-clear]')) {
+    const t = popTask();
+    t.due_at = null; await Api.saveTask(t);
+    closePopover(); refreshTask(t.id);
+    return;
+  }
+  const prd = target.closest('[data-pop-rm-dep]');
+  if (prd) {
+    const t = popTask();
+    t.depends_on = t.depends_on.filter((x) => x !== Number(prd.dataset.popRmDep));
+    await Api.saveTask(t);
+    await releaseIfFree(t);
+    closePopover(); refreshTask(t.id);
+    return;
+  }
   const depOpt = target.closest('[data-add-dep]');
   if (depOpt) {
-    const t = byId(state.openId);
+    const t = popTask();
     const dep = byId(Number(depOpt.dataset.addDep));
     t.depends_on = [...t.depends_on, dep.id];
     await onDependencyAdded(t, dep);
     await Api.saveTask(t);
     closePopover();
-    renderTable(); renderPanel();
+    refreshTask(t.id);
     return;
   }
   const userOpt = target.closest('[data-toggle-user]');
   if (userOpt) {
-    const t = byId(state.openId);
+    const t = popTask();
     const id = userOpt.dataset.toggleUser;
     const list = t.assignees.includes(id) ? t.assignees.filter((x) => x !== id) : [...t.assignees, id];
     t.assignees = USERS.map((u) => u.id).filter((x) => list.includes(x));
     await Api.saveTask(t);
-    renderTable(); renderPanel();
-    openUsersMenu($('#add-user'));
+    refreshTask(t.id);
+    pop().innerHTML = usersMenuHtml(t);
     return;
   }
   const colOpt = target.closest('[data-toggle-col]');
@@ -787,11 +937,16 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  // Abrir tarea (fila o chip de dependencia)
+  // Editar celda directamente en la tabla
+  const cellEl = target.closest('td[data-cell]');
+  if (cellEl && !target.closest('[data-open]') && !target.closest('.cell-input')) { editCell(cellEl); return; }
+
+  // Abrir tarea (botón ABRIR, tarjeta del tablero o chip de dependencia en el panel)
   const open = target.closest('[data-open]');
   if (open) { openTask(Number(open.dataset.open)); return; }
 
   // Ordenar por columna
+  if (target.closest('.col-resize')) return;
   const th = target.closest('th[data-head]');
   if (th) { openHeaderMenu(th, th.dataset.head); return; }
   const fc = target.closest('[data-fchip]');
@@ -828,6 +983,7 @@ document.addEventListener('click', async (e) => {
   }
 
   // Proyectos
+  if (target.closest('#page-title')) { startRenameProject(); return; }
   const pj = target.closest('[data-project]');
   if (pj) { selectProject(Number(pj.dataset.project)); return; }
   if (target.closest('#new-project')) {
@@ -871,6 +1027,8 @@ document.addEventListener('change', async (e) => {
     toast(`Tarea movida a ${projectName(Number(el.value))}`);
   } else if (el.matches('select[data-field]')) {
     await updateTask({ [el.dataset.field]: el.value || null });
+  } else if (el.id === 'pd-date' || el.id === 'pd-time') {
+    await saveCellDate();
   } else if (el.id === 'f-due-date') {
     const t = byId(state.openId);
     const time = hasTime(t.due_at) ? `T${t.due_at.split('T')[1]}` : '';
@@ -909,7 +1067,7 @@ document.addEventListener('input', (e) => {
 });
 
 document.addEventListener('keydown', async (e) => {
-  if (e.key === 'Escape' && e.target.id === 'new-project-input') { /* lo maneja abajo */ }
+  if (e.key === 'Escape' && (e.target.id === 'new-project-input' || e.target.id === 'page-title')) { /* lo maneja abajo */ }
   else if (e.key === 'Escape') {
     if (e.target.id === 'search') return clearSearch();
     if ($('#lightbox').classList.contains('open')) return $('#lightbox').classList.remove('open');
@@ -920,6 +1078,12 @@ document.addEventListener('keydown', async (e) => {
     const val = e.key === 'Enter' ? e.target.value : '';
     e.target.value = ''; e.target.hidden = true; $('#new-project').hidden = false;
     await createProject(val);
+    return;
+  }
+  if (e.target.id === 'page-title' && (e.key === 'Enter' || e.key === 'Escape')) {
+    e.preventDefault();
+    await finishRenameProject(e.key === 'Enter');
+    e.target.blur();
     return;
   }
   if (e.target.id === 'f-title' && e.key === 'Enter') { e.preventDefault(); $('#f-desc').focus(); }
@@ -944,6 +1108,49 @@ modal.addEventListener('drop', (e) => {
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', (e) => e.preventDefault());
 
+// Arrastrar proyectos en la barra lateral para cambiar su orden
+const plist = $('#project-list');
+let dragProj = null;
+const clearProjMarks = () => plist.querySelectorAll('.proj').forEach((el) => el.classList.remove('drop-above', 'drop-below', 'dragging'));
+plist.addEventListener('dragstart', (e) => {
+  const el = e.target.closest('[data-project]');
+  if (!el) return;
+  dragProj = Number(el.dataset.project);
+  e.dataTransfer.setData('text/x-project', String(dragProj));
+  e.dataTransfer.effectAllowed = 'move';
+  el.classList.add('dragging');
+});
+plist.addEventListener('dragover', (e) => {
+  const el = e.target.closest('[data-project]');
+  if (!el || dragProj === null) return;
+  e.preventDefault();
+  plist.querySelectorAll('.proj').forEach((x) => x !== el && x.classList.remove('drop-above', 'drop-below'));
+  if (Number(el.dataset.project) === dragProj) return;
+  const r = el.getBoundingClientRect();
+  const below = e.clientY > r.top + r.height / 2;
+  el.classList.toggle('drop-below', below);
+  el.classList.toggle('drop-above', !below);
+});
+plist.addEventListener('drop', async (e) => {
+  const el = e.target.closest('[data-project]');
+  if (!el || dragProj === null) return;
+  e.preventDefault();
+  const target = Number(el.dataset.project);
+  const below = el.classList.contains('drop-below');
+  if (target !== dragProj) {
+    const ids = state.projects.map((p) => p.id).filter((id) => id !== dragProj);
+    ids.splice(ids.indexOf(target) + (below ? 1 : 0), 0, dragProj);
+    await Api.saveProjectOrder(ids);
+    state.projects = await Api.listProjects();
+  }
+  dragProj = null;
+  renderSidebar();
+});
+plist.addEventListener('dragend', () => { dragProj = null; clearProjMarks(); });
+
+// Al salir del título del proyecto, se guarda el nombre
+$('#page-title').addEventListener('blur', () => finishRenameProject(true));
+
 // Al salir del buscador vacío, se vuelve a esconder
 $('#search').addEventListener('blur', () => { if (!state.query.trim()) $('#search-box').classList.remove('open'); });
 // Atajo: Cmd/Ctrl + F abre la búsqueda (cuando no hay una tarea abierta)
@@ -962,12 +1169,47 @@ $('#rows').addEventListener('mouseout', (e) => {
   }
 });
 
+// Cambiar el ancho de una columna arrastrando su borde derecho
+let resizing = null;
+document.addEventListener('mousedown', (e) => {
+  const h = e.target.closest('.col-resize');
+  if (!h) return;
+  e.preventDefault(); e.stopPropagation();
+  const key = h.dataset.resize;
+  resizing = { key, startX: e.clientX, startW: prefs.widths[key], col: $(`#colgroup col[data-w="${key}"]`) };
+  document.body.classList.add('resizing-col');
+  h.classList.add('active');
+});
+document.addEventListener('mousemove', (e) => {
+  if (!resizing) return;
+  const w = Math.max(MIN_WIDTH, Math.round(resizing.startW + e.clientX - resizing.startX));
+  prefs.widths[resizing.key] = w;
+  resizing.col.style.width = `${w}px`;
+  const cols = visibleColumns();
+  $('#task-table').style.width = `${34 + cols.reduce((n, c) => n + prefs.widths[c.key], 0)}px`;
+});
+document.addEventListener('mouseup', () => {
+  if (!resizing) return;
+  resizing = null;
+  document.body.classList.remove('resizing-col');
+  document.querySelectorAll('.col-resize.active').forEach((x) => x.classList.remove('active'));
+  savePrefs();
+});
+// Doble clic en el borde: vuelve al ancho por defecto
+document.addEventListener('dblclick', (e) => {
+  const h = e.target.closest('.col-resize');
+  if (!h) return;
+  prefs.widths[h.dataset.resize] = DEFAULT_WIDTHS[h.dataset.resize];
+  savePrefs(); renderTable();
+});
+
 // Arrastrar encabezados para reordenar columnas
 const thead = $('#thead');
 let dragCol = null;
 const clearColMarks = () => thead.querySelectorAll('th').forEach((th) => th.classList.remove('drop-before', 'drop-after', 'dragging'));
 thead.addEventListener('dragstart', (e) => {
   const th = e.target.closest('th[data-col]');
+  if (resizing) { e.preventDefault(); return; }
   if (!th) return;
   dragCol = th.dataset.col;
   e.dataTransfer.setData('text/x-col', dragCol);

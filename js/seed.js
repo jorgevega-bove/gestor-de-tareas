@@ -1,10 +1,10 @@
 /* Datos de ejemplo que se cargan la primera vez que se abre la app. */
 const SEED = {
   projects: [
-    { id: 1, name: 'Bus Light', created_at: '2026-11-01T09:00' },
-    { id: 2, name: 'Bove', created_at: '2026-11-01T09:00' },
-    { id: 3, name: 'ERP', created_at: '2026-11-01T09:00' },
-    { id: 4, name: 'PUC', created_at: '2026-11-01T09:00' },
+    { id: 1, name: 'Bus Light', position: 1, created_at: '2026-11-01T09:00' },
+    { id: 2, name: 'Bove', position: 2, created_at: '2026-11-01T09:00' },
+    { id: 3, name: 'ERP', position: 3, created_at: '2026-11-01T09:00' },
+    { id: 4, name: 'PUC', position: 4, created_at: '2026-11-01T09:00' },
   ],
   tasks: [
     { id: 1, title: 'Actualizar lista de precios 2027', status: 'doing', priority: 'alta', project_id: 1,

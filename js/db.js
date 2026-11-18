@@ -6,7 +6,7 @@
  * las mismas funciones contra Supabase, y el resto de la app no cambia.
  *
  * Modelo de datos (pensado para que calce con tablas de Supabase):
- *   projects    { id, name, created_at }
+ *   projects    { id, name, position, created_at }
  *   tasks       { id, project_id, title, description, status, priority, project, assignees: [ids],
  *                 created_by, created_at, due_at, depends_on: [ids] }
  *   comments    { id, task_id, author, body, created_at }
@@ -104,10 +104,27 @@ const Api = {
     await this.ensureSeed(seed);
   },
 
-  listProjects: () => LocalDB.all('projects'),
+  async listProjects() {
+    const list = await LocalDB.all('projects');
+    return list.sort((a, b) => (a.position ?? a.id) - (b.position ?? b.id) || a.id - b.id);
+  },
+  async saveProjectOrder(ids) {
+    for (const [i, id] of ids.entries()) {
+      const p = await LocalDB.get('projects', id);
+      p.position = i;
+      await LocalDB.put('projects', p);
+    }
+  },
   async createProject(name) {
-    const id = await LocalDB.put('projects', { name, created_at: nowISO() });
+    const position = (await LocalDB.all('projects')).reduce((m, p) => Math.max(m, p.position ?? p.id), 0) + 1;
+    const id = await LocalDB.put('projects', { name, position, created_at: nowISO() });
     return { id, name };
+  },
+
+  async renameProject(id, name) {
+    const p = await LocalDB.get('projects', id);
+    p.name = name;
+    await LocalDB.put('projects', p);
   },
 
   listTasks: () => LocalDB.all('tasks'),
