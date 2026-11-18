@@ -382,3 +382,4 @@ h1#page-title[contenteditable="plaintext-only"] { background: transparent; box-s
 .side-item.proj.dragging { opacity: .4; }
 .side-item.proj.drop-above { box-shadow: inset 0 2px 0 var(--accent); }
 .side-item.proj.drop-below { box-shadow: inset 0 -2px 0 var(--accent); }
+.search-box.open #search-tool .lbl { display: none; }
