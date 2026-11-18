@@ -81,8 +81,9 @@ delete CURRENT_USER;
 prefs.sort = prefs.sort || { key: null, dir: null };
 prefs.view = prefs.view || 'table';
 prefs.filters = prefs.filters || {};
-// Sección abierta en la barra lateral: 'active', 'archived' o null (máximo una abierta)
-if (prefs.openSection === undefined) prefs.openSection = 'active';
+// Secciones abiertas en la barra lateral (pueden estar las dos abiertas a la vez)
+if (!Array.isArray(prefs.openSections)) prefs.openSections = prefs.openSection === undefined ? ['active'] : [prefs.openSection].filter(Boolean);
+delete prefs.openSection;
 if (prefs.filters.status) prefs.filters.status = prefs.filters.status.filter((v) => v in STATUS);
 prefs.hidden = prefs.hidden || COLUMNS.filter((c) => c.hidden).map((c) => c.key);
 // Orden de columnas: se respeta el guardado y se agregan al final columnas nuevas
@@ -957,8 +958,8 @@ function renderSidebar() {
     `<div class="side-item proj show-all ${isAllView() ? 'active' : ''}" data-show-all><span class="proj-name">Mostrar todos</span></div>`;
   $('#archived-list').innerHTML = archived.map(item).join('') || '<div class="side-empty">Ninguno</div>';
   const current = projectById(prefs.project);
-  document.querySelectorAll('[data-section]').forEach((h) => h.classList.toggle('open', h.dataset.section === prefs.openSection));
-  document.querySelectorAll('[data-body]').forEach((b) => { b.hidden = b.dataset.body !== prefs.openSection; });
+  document.querySelectorAll('[data-section]').forEach((h) => h.classList.toggle('open', prefs.openSections.includes(h.dataset.section)));
+  document.querySelectorAll('[data-body]').forEach((b) => { b.hidden = !prefs.openSections.includes(b.dataset.body); });
   const title = isAllView() ? 'Proyectos en curso' : current ? current.name : '';
   if (!$('#page-title').isContentEditable) $('#page-title').textContent = title;
   $('#page-title').classList.toggle('static', isAllView());
@@ -1616,10 +1617,11 @@ document.addEventListener('click', async (e) => {
 
   // Proyectos
   if (target.closest('#page-title')) { startRenameProject(); return; }
-  // Secciones desplegables (máximo una abierta a la vez)
+  // Secciones desplegables (cada una se abre y cierra por separado)
   const sec = target.closest('[data-section]');
   if (sec) {
-    prefs.openSection = prefs.openSection === sec.dataset.section ? null : sec.dataset.section;
+    const k = sec.dataset.section;
+    prefs.openSections = prefs.openSections.includes(k) ? prefs.openSections.filter((x) => x !== k) : [...prefs.openSections, k];
     savePrefs();
     renderSidebar();
     return;
@@ -1668,7 +1670,7 @@ document.addEventListener('click', async (e) => {
   const ap = target.closest('[data-add-project]');
   if (ap) {
     const sec = ap.dataset.addProject;
-    prefs.openSection = sec;
+    if (!prefs.openSections.includes(sec)) prefs.openSections = [...prefs.openSections, sec];
     savePrefs();
     renderSidebar();
     const inp = $(`[data-new-project="${sec}"]`);
