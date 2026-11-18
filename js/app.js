@@ -484,7 +484,6 @@ function renderPanel() {
         <button class="x" data-del-att="${a.id}" title="Eliminar">×</button></a>`;
     }).join('')}</div>` : '<div class="nothing">Sin archivos</div>'}
 
-    <div class="hint">Arrastra fotos o archivos a este panel para adjuntarlos.</div>
   `;
 
   // Valores de texto (se asignan por JS para no tener problemas con caracteres especiales)
