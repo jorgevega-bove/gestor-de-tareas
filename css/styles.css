@@ -507,3 +507,8 @@ svg.line-ico { fill: none !important; width: 15px; height: 15px; }
 th .funnel { display: inline-flex; margin-right: 4px; }
 th .funnel svg.line-ico { width: 13px; height: 13px; stroke: var(--accent); }
 #sort-tool svg.line-ico { stroke: currentColor; }
+
+/* ---------- Panel de tarea: campos más compactos (-15%) ---------- */
+.props { row-gap: 0; }
+.p-label, .p-val { min-height: 29px; }
+.p-val { padding-top: 2px; padding-bottom: 2px; }
