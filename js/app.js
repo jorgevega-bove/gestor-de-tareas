@@ -73,6 +73,12 @@ prefs.user = prefs.user || 'jorge';
 prefs.sort = prefs.sort || { key: null, dir: null };
 prefs.view = prefs.view || 'table';
 prefs.hidden = prefs.hidden || COLUMNS.filter((c) => c.hidden).map((c) => c.key);
+// Orden de columnas: se respeta el guardado y se agregan al final columnas nuevas
+prefs.order = [
+  ...(prefs.order || []).filter((k) => COLUMNS.some((c) => c.key === k)),
+  ...COLUMNS.map((c) => c.key).filter((k) => !(prefs.order || []).includes(k)),
+];
+const orderedColumns = () => prefs.order.map((k) => COLUMNS.find((c) => c.key === k));
 function savePrefs() { try { localStorage.setItem('gt-prefs', JSON.stringify(prefs)); } catch {} }
 
 /* ---------- Utilidades ---------- */
@@ -150,7 +156,7 @@ async function onDependencyAdded(t, depTask) {
  *  Tabla
  * ============================================================ */
 function visibleColumns() {
-  return COLUMNS.filter((c) => c.fixed || !prefs.hidden.includes(c.key));
+  return orderedColumns().filter((c) => c.fixed || !prefs.hidden.includes(c.key));
 }
 
 const norm = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -239,7 +245,7 @@ function renderTableView() {
   const cols = visibleColumns();
   const { key, dir } = prefs.sort;
   $('#thead').innerHTML = `<tr><th class="gutter"></th>${cols.map((c) => `
-    <th data-sort="${c.key}" class="${c.key === key ? 'sorted' : ''}">
+    <th data-sort="${c.key}" data-col="${c.key}" draggable="true" class="${c.key === key ? 'sorted' : ''}" title="Clic para ordenar · arrastra para mover">
       <div class="h">${icon(c.icon)}${c.label}<span class="arrow">${c.key === key ? (dir === 'asc' ? '↑' : '↓') : ''}</span></div>
     </th>`).join('')}</tr>`;
   const shown = sortedTasks();
@@ -456,7 +462,7 @@ function openDepPicker(anchor) {
 
 function openColumnsMenu(anchor) {
   const render = () => `<div class="title">Propiedades visibles en la tabla</div>` +
-    COLUMNS.filter((c) => !c.fixed).map((c) => `
+    orderedColumns().filter((c) => !c.fixed).map((c) => `
       <div class="opt" data-toggle-col="${c.key}">${icon(c.icon)}${c.label}
         <span class="switch ${prefs.hidden.includes(c.key) ? '' : 'on'}"></span></div>`).join('');
   openPopover(anchor, render());
@@ -729,6 +735,46 @@ $('#rows').addEventListener('mouseout', (e) => {
     if (b) { b.classList.remove('armed'); b.title = 'Eliminar tarea'; }
   }
 });
+
+// Arrastrar encabezados para reordenar columnas
+const thead = $('#thead');
+let dragCol = null;
+const clearColMarks = () => thead.querySelectorAll('th').forEach((th) => th.classList.remove('drop-before', 'drop-after', 'dragging'));
+thead.addEventListener('dragstart', (e) => {
+  const th = e.target.closest('th[data-col]');
+  if (!th) return;
+  dragCol = th.dataset.col;
+  e.dataTransfer.setData('text/x-col', dragCol);
+  e.dataTransfer.effectAllowed = 'move';
+  th.classList.add('dragging');
+});
+thead.addEventListener('dragover', (e) => {
+  const th = e.target.closest('th[data-col]');
+  if (!th || !dragCol) return;
+  e.preventDefault();
+  thead.querySelectorAll('th').forEach((x) => x !== th && x.classList.remove('drop-before', 'drop-after'));
+  if (th.dataset.col === dragCol) return;
+  const r = th.getBoundingClientRect();
+  const after = e.clientX > r.left + r.width / 2;
+  th.classList.toggle('drop-after', after);
+  th.classList.toggle('drop-before', !after);
+});
+thead.addEventListener('drop', (e) => {
+  const th = e.target.closest('th[data-col]');
+  if (!th || !dragCol) return;
+  e.preventDefault();
+  const target = th.dataset.col;
+  const after = th.classList.contains('drop-after');
+  if (target !== dragCol) {
+    const order = prefs.order.filter((k) => k !== dragCol);
+    order.splice(order.indexOf(target) + (after ? 1 : 0), 0, dragCol);
+    prefs.order = order;
+    savePrefs();
+  }
+  dragCol = null;
+  renderTable();
+});
+thead.addEventListener('dragend', () => { dragCol = null; clearColMarks(); });
 
 // Arrastrar tarjetas entre columnas del tablero
 const board = $('#board-view');

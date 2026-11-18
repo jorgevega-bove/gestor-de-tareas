@@ -292,3 +292,9 @@ tbody tr:hover .row-del { opacity: 1; }
 .search-box.open #search-clear { display: inline-block; }
 .search-box.open #search-tool { color: var(--text); }
 .no-results td { color: var(--text-3); text-align: center !important; height: 60px; }
+
+/* ---------- Reordenar columnas ---------- */
+th[draggable="true"] { cursor: grab; }
+th.dragging { opacity: .4; }
+th.drop-before { box-shadow: inset 3px 0 0 var(--accent); }
+th.drop-after { box-shadow: inset -3px 0 0 var(--accent); }
