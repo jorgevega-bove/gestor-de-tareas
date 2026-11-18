@@ -503,6 +503,16 @@ function pickUsers(ids) {
     `<button class="mini" id="add-user">${(ids || []).length ? '+' : 'Vacío'}</button>`;
 }
 
+// Sección desplegable del panel: triangulito + título; se recuerda cuáles están plegadas
+const CHEV = '<svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>';
+function psec(key, title, body, extra = '') {
+  const closed = (prefs.panelClosed || []).includes(key);
+  return `<div class="psec ${closed ? 'closed' : ''}" data-psec="${key}">
+    <div class="section-h first psec-h"><button class="psec-toggle" data-ptoggle="${key}">${CHEV}${title}</button>${extra}</div>
+    <div class="psec-body">${body}</div>
+  </div>`;
+}
+
 function renderPanel() {
   const t = byId(state.openId);
   if (!t) return;
@@ -516,6 +526,7 @@ function renderPanel() {
     <div class="m-code">ID ${code(t)}</div>
     <textarea class="m-title" id="f-title" rows="1" placeholder="Sin título"></textarea>
 
+    ${psec('fields', 'Campos', `
     <div class="props">
       ${prop('status', 'Estado', pickSelect('status', STATUS, t.status, false), true)}
       ${prop('person', 'Responsable', pickUsers(t.assignees), true)}
@@ -528,10 +539,10 @@ function renderPanel() {
         `<button class="mini add-dep" id="add-rdep">${blocking(t).length ? '+' : 'Vacío'}</button>`, true)}
       ${prop('person', 'Creado por', person(t.created_by))}
       ${prop('clock', 'Fecha de creación', `<span class="ro">${fmt(t.created_at)}</span>`)}
-    </div>
+    </div>`)}
 
     <div class="divider"></div>
-    <div class="section-h first">Comentarios</div>
+    ${psec('comments', 'Comentarios', `
     <div class="comments">
       ${state.comments.map((c) => `
         <div class="comment">
@@ -540,15 +551,14 @@ function renderPanel() {
           ${c.author === CURRENT_USER ? `<button class="c-del" data-del-comment="${c.id}" title="Eliminar comentario">×</button>` : ''}
         </div>`).join('')}
     </div>
-    <div class="comment-new"><span class="tag c-gray person">${esc(me.name)}</span><input id="f-comment" placeholder="Agregar un comentario… (Enter para enviar)"></div>
+    <div class="comment-new"><span class="tag c-gray person">${esc(me.name)}</span><input id="f-comment" placeholder="Agregar un comentario… (Enter para enviar)"></div>`)}
 
     <div class="divider"></div>
-    <textarea class="desc" id="f-desc" placeholder="Escribe aquí los detalles de la tarea…"></textarea>
+    ${psec('desc', 'Descripción', `
+    <textarea class="desc" id="f-desc" placeholder="Escribe aquí los detalles de la tarea…"></textarea>`)}
 
     <div class="divider"></div>
-    <div class="section-h first">Archivos adjuntos
-      <label class="add attach-btn" title="Adjuntar archivos">${CLIP_ICON}<input type="file" id="up-file" multiple hidden></label>
-    </div>
+    ${psec('files', 'Archivos adjuntos', `
     ${files.length ? `<div class="files">${files.map((a) => {
       const e = extStyle(a.name);
       const img = (a.type || '').startsWith('image/');
@@ -557,7 +567,7 @@ function renderPanel() {
         <div class="name">${esc(a.name)}</div>
         <div class="meta">${fmtSize(a.size)} · ${esc(userName(a.uploaded_by) || '')}</div>
         <button class="x" data-del-att="${a.id}" title="Eliminar">×</button></a>`;
-    }).join('')}</div>` : '<div class="nothing">Sin archivos</div>'}
+    }).join('')}</div>` : '<div class="nothing">Sin archivos</div>'}`, `<label class="add attach-btn" title="Adjuntar archivos">${CLIP_ICON}<input type="file" id="up-file" multiple hidden></label>`)}
 
   `;
 
@@ -1664,6 +1674,16 @@ document.addEventListener('click', async (e) => {
 
 
   // Cerrar panel
+  const pt = target.closest('[data-ptoggle]');
+  if (pt) {
+    const k = pt.dataset.ptoggle;
+    const closed = new Set(prefs.panelClosed || []);
+    if (closed.has(k)) closed.delete(k); else closed.add(k);
+    prefs.panelClosed = [...closed];
+    savePrefs();
+    renderPanel();
+    return;
+  }
   if (target.closest('#panel-back')) { const prev = panelHistory.pop(); if (prev && byId(prev)) await openTask(prev, { back: true }); else updateBackBtn(); return; }
   if (target.id === 'overlay' || target.closest('#close')) { closeTask(); }
 });

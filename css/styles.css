@@ -600,3 +600,13 @@ tbody tr.selected td.c-title { box-shadow: inset 2px 0 0 var(--accent); }
 .section-h .attach-btn { display: inline-grid; place-items: center; width: 26px; height: 26px; padding: 0; color: var(--text-2); }
 .section-h .attach-btn svg.line-ico { width: 16px; height: 16px; }
 .section-h .attach-btn:hover { color: var(--text); }
+
+/* ---------- Secciones desplegables del panel: Campos, Comentarios, Descripción, Archivos ---------- */
+.psec-h { margin-bottom: 8px; }
+.psec-toggle { display: inline-flex; align-items: center; gap: 6px; border: none; background: none; font: inherit; font-size: 15px; font-weight: 600; color: var(--text); cursor: pointer; padding: 2px 6px 2px 2px; margin-left: -4px; border-radius: 4px; }
+.psec-toggle:hover { background: var(--hover); }
+.psec-toggle .chev { width: 13px; height: 13px; color: var(--text-3); transform: rotate(90deg); transition: transform .15s ease; }
+.psec.closed .psec-toggle .chev { transform: rotate(0deg); }
+.psec.closed .psec-body { display: none; }
+.psec.closed .psec-h { margin-bottom: 0; }
+.psec.closed .attach-btn { display: none; }
