@@ -18,6 +18,7 @@ Desde Cuenta › Configuración se puede descargar un respaldo y restaurarlo.
 - Vista de **tabla**: clic en un encabezado para Ordenar o Filtrar (con casillas en Estado, Prioridad, Responsable, Proyecto y Creado por); con columnas que se reordenan arrastrando y se ocultan (botón "Propiedades").
 - Vista **Kanban** por estado; las tarjetas se arrastran entre columnas.
 - Búsqueda por título, texto, ID, proyecto o responsable (Cmd+F).
+- Atajos: N crea una tarea en el proyecto actual; X alterna entre Tabla y Kanban.
 - Deshacer y rehacer cambios: ⌘Z / ⌘Y en Mac, Ctrl+Z / Ctrl+Y en Windows.
 - Bitácora (menú de la cuenta) con todo el historial de tareas, proyectos y personas: quién, qué y cuándo.
 - Panel de detalle con propiedades, comentarios, texto libre y archivos adjuntos (arrastrar al panel para adjuntar).

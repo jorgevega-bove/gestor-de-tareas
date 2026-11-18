@@ -752,6 +752,16 @@ function resetDeleteBtn() {
   $('#delete-task').classList.remove('danger');
 }
 
+// Crea una tarea en el proyecto actual y abre su panel con el título listo para escribir
+async function createNewTask(status = 'todo') {
+  const project_id = isAllView() ? (state.projects.find((p) => !p.archived) || state.projects[0]).id : prefs.project;
+  const t = await Api.createTask({ project_id, created_by: CURRENT_USER, assignees: [CURRENT_USER], status });
+  state.tasks.push(t);
+  renderTable();
+  await openTask(t.id);
+  $('#f-title').focus();
+}
+
 async function deleteTask(id) {
   const t = byId(id);
   const dependents = blocking(t);
@@ -886,18 +896,9 @@ function openSettings() {
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
 function openShortcuts() {
   const k = (...keys) => keys.map((x) => `<kbd>${x}</kbd>`).join(' ');
-  const mod = IS_MAC ? '⌘' : 'Ctrl';
   const rows = [
-    [k(mod, 'F'), 'Buscar tareas'],
-    [k(mod, 'Z'), 'Deshacer el último cambio'],
-    [IS_MAC ? `${k('⌘', 'Y')} o ${k('⌘', '⇧', 'Z')}` : k('Ctrl', 'Y'), 'Rehacer'],
-    [k('Esc'), 'Cerrar el panel, un menú o la búsqueda'],
-    [k('Enter'), 'Guardar al editar una celda o el título del proyecto'],
-    [k('Esc'), 'Cancelar la edición de una celda'],
-    [k('Enter'), 'En el título de una tarea: pasar a la descripción'],
-    [k('Enter'), 'En un comentario: enviarlo'],
-    [k('Enter'), 'En Responsable o Proyecto: elegir o crear la opción'],
-    ['Doble clic', 'En el borde de una columna: volver a su ancho original'],
+    [k('N'), 'Crear una tarea en el proyecto actual'],
+    [k('X'), 'Alternar entre Tabla y Kanban'],
   ];
   openDialog('Atajos de teclado', `<table class="kbd-table">${rows.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>`);
 }
@@ -1347,14 +1348,7 @@ document.addEventListener('click', async (e) => {
 
   // Nueva tarea
   const lane = target.closest('[data-new-in]');
-  if (target.closest('#new-task, #add-row') || lane) {
-    const t = await Api.createTask({ project_id: isAllView() ? (state.projects.find((p) => !p.archived) || state.projects[0]).id : prefs.project, created_by: CURRENT_USER, assignees: [CURRENT_USER], status: lane ? lane.dataset.newIn : 'todo' });
-    state.tasks.push(t);
-    renderTable();
-    await openTask(t.id);
-    $('#f-title').focus();
-    return;
-  }
+  if (target.closest('#new-task, #add-row') || lane) { await createNewTask(lane ? lane.dataset.newIn : 'todo'); return; }
 
   // Eliminar tarea
   if (target.closest('#delete-task')) {
@@ -1469,7 +1463,8 @@ document.addEventListener('input', (e) => {
     autoGrow(el);
     byId(state.openId).title = el.value;
     clearTimeout(titleTimer);
-    titleTimer = setTimeout(async () => { await Api.saveTask(byId(state.openId)); renderTable(); }, 250);
+    const id = state.openId; // se guarda aunque el panel se cierre antes de que pase el tiempo
+    titleTimer = setTimeout(async () => { if (byId(id)) await Api.saveTask(byId(id)); renderTable(); }, 250);
   } else if (el.id === 'f-desc') {
     autoGrow(el);
     byId(state.openId).description = el.value;
@@ -1570,6 +1565,19 @@ plist.addEventListener('drop', async (e) => {
   renderSidebar();
 });
 plist.addEventListener('dragend', () => { dragProj = null; clearProjMarks(); });
+
+// Atajos de una tecla: N crea una tarea, X alterna Tabla / Kanban.
+// No actúan mientras se escribe, ni con el panel de una tarea, un menú o una ventana abiertos.
+document.addEventListener('keydown', async (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+  const el = document.activeElement;
+  if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+  if (state.openId || pop().classList.contains('open') || $('#dialog').classList.contains('open') ||
+      $('#confirm').classList.contains('open') || !$('#logged-out').hidden) return;
+  const k = e.key.toLowerCase();
+  if (k === 'n') { e.preventDefault(); await createNewTask(); }
+  else if (k === 'x') { e.preventDefault(); prefs.view = prefs.view === 'board' ? 'table' : 'board'; savePrefs(); renderTable(); }
+});
 
 // Deshacer y rehacer: ⌘Z / ⌘Y (o ⌘⇧Z) en Mac, Ctrl+Z / Ctrl+Y en Windows
 document.addEventListener('keydown', async (e) => {
