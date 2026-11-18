@@ -526,3 +526,8 @@ th .funnel svg.line-ico { width: 13px; height: 13px; stroke: var(--accent); }
 .dep.tag[data-open]:hover { filter: brightness(.95); }
 .dep .tag-x { color: inherit; opacity: .55; }
 .dep .tag-x:hover { opacity: 1; color: inherit; }
+
+/* Kanban: "+ Nueva" siempre al fondo de la columna */
+.lane { display: flex; flex-direction: column; }
+.lane .cards { flex: 1; }
+.lane .new-card { margin-top: 8px; }
