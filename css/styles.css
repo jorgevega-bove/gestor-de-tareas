@@ -541,3 +541,7 @@ th .funnel svg.line-ico { width: 13px; height: 13px; stroke: var(--accent); }
 .c-del { border: none; background: none; color: var(--text-3); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 4px; opacity: 0; }
 .comment:hover .c-del { opacity: 1; }
 .c-del:hover { background: #fdebec; color: #d44c47; }
+
+/* Panel de tarea: líneas que separan Propiedades / Comentarios / Descripción / Archivos */
+.modal-body .divider { margin: 18px 0; }
+.section-h.first { margin-top: 0; }

@@ -455,7 +455,8 @@ function renderPanel() {
       ${prop('clock', 'Fecha de creación', `<span class="ro">${fmt(t.created_at)}</span>`)}
     </div>
 
-    <div class="section-h">Comentarios</div>
+    <div class="divider"></div>
+    <div class="section-h first">Comentarios</div>
     <div class="comments">
       ${state.comments.map((c) => `
         <div class="comment">
@@ -469,7 +470,8 @@ function renderPanel() {
     <div class="divider"></div>
     <textarea class="desc" id="f-desc" placeholder="Escribe aquí los detalles de la tarea…"></textarea>
 
-    <div class="section-h">Archivos adjuntos
+    <div class="divider"></div>
+    <div class="section-h first">Archivos adjuntos
       <label class="add">+ Adjuntar archivos<input type="file" id="up-file" multiple hidden></label>
     </div>
     ${files.length ? `<div class="files">${files.map((a) => {
