@@ -791,20 +791,31 @@ function selectProject(id) {
 }
 
 /* ---------- Eliminar proyecto (con confirmación) ---------- */
+/* ---------- Ventana de confirmación genérica ---------- */
+let confirmAction = null;
+function showConfirm({ title, body, ok, onOk }) {
+  confirmAction = onOk;
+  $('#confirm-body').innerHTML = `
+    <h3>${title}</h3>
+    <p>${body}</p>
+    <div class="confirm-actions">
+      <button class="btn-cancel" data-confirm-cancel>Cancelar</button>
+      <button class="btn-danger" data-confirm-ok>${ok}</button>
+    </div>`;
+  $('#confirm').classList.add('open');
+  $('[data-confirm-cancel]').focus();
+}
+
 function confirmDeleteProject(id) {
   const p = projectById(id);
   if (state.projects.length === 1) { toast('Debe quedar al menos un proyecto'); return; }
   const n = state.tasks.filter((t) => t.project_id === p.id).length;
-  $('#confirm-body').innerHTML = `
-    <h3>¿Eliminar el proyecto «${esc(p.name)}»?</h3>
-    <p>${n ? `Se eliminarán también sus <b>${n} tarea${n > 1 ? 's' : ''}</b>, con sus comentarios y archivos adjuntos.` : 'El proyecto no tiene tareas.'}
-    Esta acción no se puede deshacer.</p>
-    <div class="confirm-actions">
-      <button class="btn-cancel" data-confirm-cancel>Cancelar</button>
-      <button class="btn-danger" data-confirm-delete="${p.id}">Eliminar proyecto</button>
-    </div>`;
-  $('#confirm').classList.add('open');
-  $('[data-confirm-cancel]').focus();
+  showConfirm({
+    title: `¿Eliminar el proyecto «${esc(p.name)}»?`,
+    body: `${n ? `Se eliminarán también sus <b>${n} tarea${n > 1 ? 's' : ''}</b>, con sus comentarios y archivos adjuntos.` : 'El proyecto no tiene tareas.'} Esta acción no se puede deshacer.`,
+    ok: 'Eliminar proyecto',
+    onOk: () => deleteProject(p.id),
+  });
 }
 const closeConfirm = () => $('#confirm').classList.remove('open');
 
@@ -826,6 +837,76 @@ async function deleteProject(id) {
   renderTable();
   toast(`Proyecto ${p.name} eliminado`);
 }
+
+/* ---------- Diálogo genérico (Configuración, Atajos) ---------- */
+function openDialog(title, html) {
+  $('#dialog-body').innerHTML = `
+    <div class="dlg-head"><h3>${title}</h3><button class="icon-btn" data-dialog-close title="Cerrar (Esc)">✕</button></div>
+    <div class="dlg-content">${html}</div>`;
+  $('#dialog').classList.add('open');
+}
+const closeDialog = () => $('#dialog').classList.remove('open');
+
+/* ---------- Cuenta ---------- */
+function openAccountMenu(anchor) {
+  openPopover(anchor, `
+    <div class="title">${esc(userName(CURRENT_USER))}</div>
+    <div class="opt" data-account="settings">⚙&nbsp; Configuración</div>
+    <div class="opt" data-account="shortcuts">⌨&nbsp; Atajos de teclado</div>
+    <div class="pop-sep"></div>
+    <div class="opt" data-account="logout">↪&nbsp; Salir de la cuenta</div>`);
+  pop().dataset.kind = 'account';
+  pop().style.minWidth = '220px';
+}
+
+function openSettings() {
+  openDialog('Configuración', `
+    <div class="set-sec">
+      <div class="set-txt"><b>Datos de ejemplo</b><span>Borra todo y vuelve a cargar los proyectos y tareas de ejemplo.</span></div>
+      <button class="btn-cancel danger-text" id="reset-data">Restablecer datos de ejemplo</button>
+    </div>`);
+}
+
+const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
+function openShortcuts() {
+  const k = (...keys) => keys.map((x) => `<kbd>${x}</kbd>`).join(' ');
+  const mod = IS_MAC ? '⌘' : 'Ctrl';
+  const rows = [
+    [k(mod, 'F'), 'Buscar tareas'],
+    [k('Esc'), 'Cerrar el panel, un menú o la búsqueda'],
+    [k('Enter'), 'Guardar al editar una celda o el título del proyecto'],
+    [k('Esc'), 'Cancelar la edición de una celda'],
+    [k('Enter'), 'En el título de una tarea: pasar a la descripción'],
+    [k('Enter'), 'En un comentario: enviarlo'],
+    [k('Enter'), 'En Responsable o Proyecto: elegir o crear la opción'],
+    ['Doble clic', 'En el borde de una columna: volver a su ancho original'],
+  ];
+  openDialog('Atajos de teclado', `<table class="kbd-table">${rows.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>`);
+}
+
+function setLoggedOut(v) {
+  prefs.loggedOut = v;
+  savePrefs();
+  closeTask();
+  $('#logged-out').hidden = !v;
+}
+
+async function resetData() {
+  await Api.resetAll(SEED);
+  USERS = await Api.listPeople();
+  state.tasks = await Api.listTasks();
+  state.projects = await Api.listProjects();
+  prefs.project = state.projects[0].id;
+  prefs.filters = {};
+  savePrefs();
+  closeDialog();
+  closeTask();
+  renderAccount();
+  renderTable();
+  toast('Datos de ejemplo restablecidos');
+}
+
+function renderAccount() { $('#account-name').textContent = userName(CURRENT_USER) || 'Jorge'; }
 
 /* ---------- Renombrar proyecto (clic en el título) ---------- */
 function startRenameProject() {
@@ -988,6 +1069,14 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if (target.closest('[data-hm-unsort]')) { closePopover(); prefs.sort = { key: null, dir: null }; savePrefs(); renderTable(); return; }
+  const am = target.closest('[data-account]');
+  if (am) {
+    closePopover();
+    if (am.dataset.account === 'settings') openSettings();
+    if (am.dataset.account === 'shortcuts') openShortcuts();
+    if (am.dataset.account === 'logout') setLoggedOut(true);
+    return;
+  }
   if (pop().contains(target)) return;
   if (pop().classList.contains('open') && !target.closest('#add-dep, #cols-tool, #add-user, #pick-project, #pick-due')) { closePopover(); }
 
@@ -1121,9 +1210,22 @@ document.addEventListener('click', async (e) => {
   // Eliminar proyecto: primero se pide confirmación
   const dp = target.closest('[data-delete-project]');
   if (dp) { confirmDeleteProject(Number(dp.dataset.deleteProject)); return; }
-  const cd = target.closest('[data-confirm-delete]');
-  if (cd) { await deleteProject(Number(cd.dataset.confirmDelete)); return; }
+  if (target.closest('[data-confirm-ok]')) { const fn = confirmAction; confirmAction = null; closeConfirm(); if (fn) await fn(); return; }
   if (target.closest('[data-confirm-cancel]') || target.id === 'confirm') { closeConfirm(); return; }
+
+  // Cuenta: menú con Configuración, Atajos de teclado y Salir
+  if (target.closest('#account')) { openAccountMenu(target.closest('#account')); return; }
+  if (target.closest('#login-again')) { setLoggedOut(false); return; }
+  if (target.closest('[data-dialog-close]') || target.id === 'dialog') { closeDialog(); return; }
+  if (target.closest('#reset-data')) {
+    showConfirm({
+      title: '¿Restablecer los datos de ejemplo?',
+      body: 'Se borrarán <b>todos</b> los proyectos, tareas, personas, comentarios y archivos, y se cargarán los datos de ejemplo. Esta acción no se puede deshacer.',
+      ok: 'Restablecer',
+      onOk: resetData,
+    });
+    return;
+  }
   const ar = target.closest('[data-archive]');
   if (ar) {
     const p = projectById(ar.dataset.archive);
@@ -1143,27 +1245,6 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  // Cambiar usuario
-
-  // Restablecer datos
-  if (target.closest('#reset')) {
-    const btn = $('#reset');
-    if (!btn.classList.contains('armed')) {
-      btn.classList.add('armed');
-      btn.textContent = '¿Seguro? Se borra todo. Clic de nuevo';
-      setTimeout(() => { btn.classList.remove('armed'); btn.textContent = 'Restablecer datos de ejemplo'; }, 4000);
-      return;
-    }
-    await Api.resetAll(SEED);
-    USERS = await Api.listPeople();
-    state.tasks = await Api.listTasks();
-    state.projects = await Api.listProjects();
-    prefs.project = state.projects[0].id; savePrefs();
-    renderSidebar();
-    btn.classList.remove('armed'); btn.textContent = 'Restablecer datos de ejemplo';
-    closeTask(); renderTable(); toast('Datos de ejemplo restablecidos');
-    return;
-  }
 
   // Cerrar panel
   if (target.id === 'overlay' || target.closest('#close')) { closeTask(); }
@@ -1217,6 +1298,7 @@ document.addEventListener('input', (e) => {
 
 document.addEventListener('keydown', async (e) => {
   if (e.key === 'Escape' && $('#confirm').classList.contains('open')) { closeConfirm(); return; }
+  if (e.key === 'Escape' && $('#dialog').classList.contains('open')) { closeDialog(); return; }
   if (e.key === 'Escape' && (e.target.id === 'new-project-input' || e.target.id === 'page-title')) { /* lo maneja abajo */ }
   else if (e.key === 'Escape') {
     if (e.target.id === 'search') return clearSearch();
@@ -1465,6 +1547,8 @@ board.addEventListener('drop', async (e) => {
     return;
   }
   if (!isAllView() && !projectById(prefs.project)) { prefs.project = state.projects[0].id; savePrefs(); }
+  renderAccount();
+  $('#logged-out').hidden = !prefs.loggedOut;
   renderSidebar();
   renderTable();
 })();

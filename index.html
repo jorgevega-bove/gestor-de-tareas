@@ -24,7 +24,11 @@
   </div>
   <div class="side-spacer"></div>
   <div class="side-foot">
-    <button class="reset" id="reset">Restablecer datos de ejemplo</button>
+    <button class="account" id="account" title="Cuenta">
+      <svg class="i" viewBox="0 0 16 16"><path d="M8 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6zm0 7.5c3 0 5.5 1.5 5.5 3.5V14h-11v-1c0-2 2.5-3.5 5.5-3.5z"/></svg>
+      <span class="acc-name" id="account-name"></span>
+      <svg class="chev-ud" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6.5l3-3 3 3M5 9.5l3 3 3-3"/></svg>
+    </button>
   </div>
 </aside>
 
@@ -79,6 +83,15 @@
 
 <div class="popover" id="popover"></div>
 <div class="lightbox" id="lightbox"><img alt=""><div class="cap"></div></div>
+<div class="dialog-overlay" id="dialog"><div class="dialog-box" role="dialog" aria-modal="true" id="dialog-body"></div></div>
+<div class="logged-out" id="logged-out" hidden>
+  <div class="lo-card">
+    <div class="ws-icon lo-logo">B</div>
+    <h2>Sesión cerrada</h2>
+    <p>Esta es una maqueta: el inicio de sesión real llegará con el sistema de cuentas.</p>
+    <button class="btn-new" id="login-again">Entrar como Jorge</button>
+  </div>
+</div>
 <div class="confirm-overlay" id="confirm"><div class="confirm-box" role="alertdialog" aria-modal="true" id="confirm-body"></div></div>
 <div class="toasts" id="toasts"></div>
 
