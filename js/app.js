@@ -120,7 +120,7 @@ const avatar = (u) => `<span class="avatar" style="background:${u.color}">${u.na
 const person = (id) => (user(id) ? `<span class="person">${avatar(user(id))}${esc(user(id).name)}</span>` : '');
 const projectTag = (p) => (p ? `<span class="tag t${hashIdx(p, 6)}">${esc(p)}</span>` : '');
 const depChip = (t, removable = false) =>
-  `<span class="dep ${t.status !== 'done' ? 'pending' : ''}" data-open="${t.id}" title="${esc(t.title)}">${code(t)}</span>` +
+  `<span class="dep" data-open="${t.id}" title="${esc(t.title)}">${code(t)}</span>` +
   (removable ? `<button class="mini dep-x" data-remove-dep="${t.id}" title="Quitar">×</button>` : '');
 
 /* ============================================================
@@ -191,9 +191,8 @@ function cell(col, t) {
   switch (col.key) {
     case 'code': return `<td class="c-code">${code(t)}</td>`;
     case 'title': {
-      const lock = blockedBy(t).length ? `<span class="lock" title="Bloqueada por la(s) tarea(s) ${blockedBy(t).map(code).join(', ')}">${icon('lock')}</span>` : '';
       const title = t.title ? esc(t.title) : '<span class="untitled">Sin título</span>';
-      return `<td class="c-title"><div class="t">${title}${lock}<span class="open">ABRIR</span></div></td>`;
+      return `<td class="c-title"><div class="t">${title}<span class="open">ABRIR</span></div></td>`;
     }
     case 'status': return `<td>${pill(STATUS, t.status)}</td>`;
     case 'priority': return `<td>${pill(PRIORITY, t.priority)}</td>`;
@@ -226,7 +225,6 @@ function renderBoard() {
       <div class="cards">${items.map((t) => `
         <div class="card" draggable="true" data-open="${t.id}" data-card="${t.id}">
           ${t.title ? esc(t.title) : '<span class="untitled">Sin título</span>'}
-          ${blockedBy(t).length ? `<span class="lock" title="Bloqueada por la(s) tarea(s) ${blockedBy(t).map(code).join(', ')}">${icon('lock')}</span>` : ''}
         </div>`).join('')}</div>
       <div class="new-card" data-new-in="${k}">＋ Nueva</div>
     </div>`;
