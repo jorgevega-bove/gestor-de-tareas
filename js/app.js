@@ -559,8 +559,12 @@ function openDepPicker(anchor, taskId = state.openId) {
   const candidates = () => state.tasks
     .filter((x) => x.id !== t.id && !t.depends_on.includes(x.id) && !dependsOn(x, t.id))
     .sort((a, b) => a.id - b.id);
+  // Búsqueda por ID ("3", "#3", "id 3") o por título; el ID exacto aparece primero
   const list = (q) => {
-    const items = candidates().filter((x) => `${code(x)} ${x.title}`.toLowerCase().includes(q.toLowerCase()));
+    const raw = q.trim();
+    const idq = (raw.match(/^(?:id\s*|#)?(\d+)$/i) || [])[1];
+    const items = candidates().filter((x) => (idq && String(x.id).startsWith(idq)) || norm(x.title).includes(norm(raw)))
+      .sort((a, b) => (idq ? (String(b.id) === idq) - (String(a.id) === idq) : 0) || a.id - b.id);
     return items.length ? items.map((x) => `
       <div class="opt dep-opt" data-add-dep="${x.id}"><span class="code">${code(x)}</span><span class="ttl">${esc(x.title || 'Sin título')}</span>
       <span class="dep-status">${pill(STATUS, x.status)}</span></div>`).join('')
@@ -570,7 +574,7 @@ function openDepPicker(anchor, taskId = state.openId) {
   openPopover(anchor, `<div class="title">Esta tarea depende de…</div>
     ${current.length ? `<div class="pop-current">${current.map((d) =>
       `<span class="tag c-gray person">${code(d)} · ${esc(d.title || 'Sin título')}<button class="tag-x" data-pop-rm-dep="${d.id}" title="Quitar">×</button></span>`).join('')}</div>` : ''}
-    <input class="search" id="dep-search" placeholder="Buscar tarea">
+    <input class="search" id="dep-search" placeholder="Buscar por ID o título">
     <div class="opts" id="dep-opts">${list('')}</div>`);
   pop().dataset.kind = 'deps';
   pop().dataset.task = t.id;
@@ -1478,7 +1482,7 @@ document.addEventListener('keydown', async (e) => {
     e.target.blur();
     return;
   }
-  if ((e.target.id === 'um-search' || e.target.id === 'cs-search') && e.key === 'Enter') {
+  if (['um-search', 'cs-search', 'dep-search'].includes(e.target.id) && e.key === 'Enter') {
     e.preventDefault();
     const first = pop().querySelector('.opts .opt');
     if (first) first.click();
