@@ -592,3 +592,8 @@ tbody tr.selected td.c-title { box-shadow: inset 2px 0 0 var(--accent); }
 .sec-add:hover { background: var(--hover); color: var(--text); }
 .sec-body .new-project-input { display: block; width: calc(100% - 8px); margin: 2px 4px 4px; }
 .sec-body .new-project-input[hidden] { display: none; }
+
+/* Íconos de archivar y eliminar proyecto más juntos */
+.side-item.proj { gap: 4px; }
+.proj-archive { width: 20px; height: 20px; }
+.proj-archive + .proj-delete { margin-left: -2px; }
