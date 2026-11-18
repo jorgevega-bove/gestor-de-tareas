@@ -115,7 +115,7 @@ function dependsOn(a, targetId, seen = new Set()) {
 
 /* ---------- Componentes HTML ---------- */
 const pill = (map, key) => (key && map[key]
-  ? `<span class="pill ${map[key].cls}"><span class="dot"></span>${map[key].label}</span>` : '');
+  ? `<span class="pill ${map[key].cls}">${map[key].label}</span>` : '');
 const avatar = (u) => `<span class="avatar" style="background:${u.color}">${u.name[0]}</span>`;
 const person = (id) => (user(id) ? `<span class="person">${avatar(user(id))}${esc(user(id).name)}</span>` : '');
 const projectTag = (p) => (p ? `<span class="tag t${hashIdx(p, 6)}">${esc(p)}</span>` : '');
