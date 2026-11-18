@@ -422,8 +422,7 @@ function renderPanel() {
   const overlay = $('#overlay');
   const scroll = overlay.scrollTop;
   const deps = t.depends_on.map(byId).filter(Boolean);
-  const photos = state.attachments.filter((a) => a.kind === 'photo');
-  const files = state.attachments.filter((a) => a.kind === 'file');
+  const files = state.attachments;
   const me = user(prefs.user);
 
   $('#modal-body').innerHTML = `
@@ -463,27 +462,20 @@ function renderPanel() {
     <div class="divider"></div>
     <textarea class="desc" id="f-desc" placeholder="Escribe aquí los detalles de la tarea…"></textarea>
 
-    <div class="section-h">Fotos
-      <label class="add">+ Agregar fotos<input type="file" id="up-photo" accept="image/*" multiple hidden></label>
-    </div>
-    ${photos.length ? `<div class="gallery">${photos.map((a) => `
-      <div class="photo" data-photo="${a.id}"><img src="${urlFor(a)}" alt="${esc(a.name)}">
-        <button class="x" data-del-att="${a.id}" title="Eliminar">×</button></div>`).join('')}</div>`
-      : '<div class="nothing">Sin fotos</div>'}
-
     <div class="section-h">Archivos adjuntos
       <label class="add">+ Adjuntar archivos<input type="file" id="up-file" multiple hidden></label>
     </div>
     ${files.length ? `<div class="files">${files.map((a) => {
       const e = extStyle(a.name);
-      return `<a class="file" href="${urlFor(a)}" download="${esc(a.name)}" title="Descargar">
-        <div class="ext" style="background:${e.color}">${e.label}</div>
+      const img = (a.type || '').startsWith('image/');
+      return `<a class="file" href="${urlFor(a)}" download="${esc(a.name)}" ${img ? `data-photo="${a.id}" title="Ver imagen"` : 'title="Descargar"'}>
+        ${img ? `<img class="thumb" src="${urlFor(a)}" alt="">` : `<div class="ext" style="background:${e.color}">${e.label}</div>`}
         <div class="name">${esc(a.name)}</div>
         <div class="meta">${fmtSize(a.size)} · ${esc(userName(a.uploaded_by) || '')}</div>
         <button class="x" data-del-att="${a.id}" title="Eliminar">×</button></a>`;
     }).join('')}</div>` : '<div class="nothing">Sin archivos</div>'}
 
-    <div class="hint">También puedes arrastrar fotos y archivos a este panel.</div>
+    <div class="hint">Arrastra fotos o archivos a este panel para adjuntarlos.</div>
   `;
 
   // Valores de texto (se asignan por JS para no tener problemas con caracteres especiales)
@@ -533,13 +525,10 @@ async function updateTask(patch, { rerenderPanel = true } = {}) {
 }
 
 /* ---------- Adjuntos ---------- */
-async function addFiles(fileList, forceKind) {
+async function addFiles(fileList) {
   const t = byId(state.openId);
   if (!t || !fileList.length) return;
-  for (const f of fileList) {
-    const kind = forceKind || (f.type.startsWith('image/') ? 'photo' : 'file');
-    await Api.addAttachment(t.id, f, kind, prefs.user);
-  }
+  for (const f of fileList) await Api.addAttachment(t.id, f, 'file', prefs.user);
   state.attachments = await Api.listAttachments(t.id);
   renderPanel();
   toast(fileList.length === 1 ? 'Archivo agregado' : `${fileList.length} archivos agregados`);
@@ -776,6 +765,7 @@ document.addEventListener('click', async (e) => {
   // Ver foto en grande
   const ph = target.closest('[data-photo]');
   if (ph) {
+    e.preventDefault();
     const a = state.attachments.find((x) => x.id === Number(ph.dataset.photo));
     $('#lightbox img').src = urlFor(a);
     $('#lightbox .cap').textContent = a.name;
@@ -889,10 +879,8 @@ document.addEventListener('change', async (e) => {
     const date = byId(state.openId).due_at.split('T')[0];
     state.addingTime = false;
     await updateTask({ due_at: el.value ? `${date}T${el.value}` : date });
-  } else if (el.id === 'up-photo') {
-    await addFiles([...el.files], 'photo');
   } else if (el.id === 'up-file') {
-    await addFiles([...el.files], 'file');
+    await addFiles([...el.files]);
   }
 });
 
