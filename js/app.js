@@ -41,6 +41,8 @@ const SORT_ICON = '<svg class="i line-ico" viewBox="0 0 16 16" fill="none" strok
 const FUNNEL_ICON = '<svg class="i line-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 3h11.5L9.25 8.6v4.4l-2.5-1.25V8.6z"/></svg>';
 // Ícono de enlace (cadena) para "Depende de"
 const LINK_ICON = '<svg class="i line-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6.75 9.25a2.75 2.75 0 0 0 3.9 0l2.35-2.35a2.75 2.75 0 0 0-3.9-3.9l-.85.85"/><path d="M9.25 6.75a2.75 2.75 0 0 0-3.9 0L3 9.1a2.75 2.75 0 0 0 3.9 3.9l.85-.85"/></svg>';
+const TOGGLE_ICON = '<svg class="i" viewBox="0 0 16 16"><path d="M5 3.5h6a4.5 4.5 0 0 1 0 9H5a4.5 4.5 0 0 1 0-9zm0 1.5a3 3 0 0 0 0 6h6a3 3 0 0 0 0-6zm6 .75a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5z"/></svg>';
+const BOARD_ICON = '<svg class="i line-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="2"/><path d="M5.9 2.75v10.5M10.1 2.75v10.5"/></svg>';
 const icon = (name) => name === 'link' ? LINK_ICON : `<svg class="i" viewBox="0 0 16 16"><path d="${P[name]}"/></svg>`;
 
 /* ---------- Columnas ---------- */
@@ -296,23 +298,67 @@ function renderTable() {
   $('#table-view').hidden = v !== 'table';
   $('#board-view').hidden = v !== 'board';
   $('#cols-tool').style.display = v === 'table' ? '' : 'none';
+  $('#group-tool').style.display = v === 'board' ? '' : 'none';
 }
 
 /* ---------- Tablero (Kanban) ---------- */
-function renderBoard() {
-  const list = sortedTasks();
+/* ---------- Kanban: agrupar por un campo ---------- */
+const GROUP_LABEL = { status: 'Estado', assignees: 'Responsable', priority: 'Prioridad', project_id: 'Proyecto', created_by: 'Creado por' };
+const LANE_BG = { 'c-red': '#fdf5f4', 'c-blue': '#f4f8fb', 'c-yellow': '#fdf9ee', 'c-green': '#f5f9f5' };
+// Columnas del Kanban según el campo elegido: [valor, encabezado, color de fondo]
+function boardLanes(g) {
   const stSel = prefs.filters.status || [];
-  $('#board-view').innerHTML = Object.entries(STATUS).filter(([k]) => !stSel.length || stSel.includes(k)).map(([k]) => {
-    const items = list.filter((t) => t.status === k);
-    return `<div class="lane l-${k}" data-lane="${k}">
-      <div class="lane-h">${pill(STATUS, k)}<span class="n">${items.length}</span></div>
+  switch (g) {
+    case 'priority': return [...Object.keys(PRIORITY).map((k) => [k, pill(PRIORITY, k), LANE_BG[PRIORITY[k].cls]]), ['', '<span class="empty">Sin prioridad</span>']];
+    case 'assignees': return [...USERS.map((u) => [u.id, person(u.id)]), ['', '<span class="empty">Sin responsable</span>']];
+    case 'created_by': return USERS.map((u) => [u.id, person(u.id)]);
+    case 'project_id': return state.projects.filter((p) => !p.archived && (isAllView() || p.id === prefs.project)).map((p) => [String(p.id), projectTag(p.id)]);
+    default: return Object.keys(STATUS).filter((k) => !stSel.length || stSel.includes(k)).map((k) => [k, pill(STATUS, k), LANE_BG[STATUS[k].cls]]);
+  }
+}
+// Valores de una tarea para el campo de agrupación (una tarea con varios responsables aparece en varias columnas)
+function laneValues(t, g) {
+  if (g === 'assignees') return t.assignees.length ? t.assignees : [''];
+  if (g === 'project_id') return [String(t.project_id)];
+  return [t[g] ?? ''];
+}
+// Cambia el campo de agrupación al mover una tarjeta de una columna a otra
+async function moveToLane(t, g, from, to) {
+  if (from === to) return;
+  if (g === 'status') return setStatus(t, to);
+  if (g === 'priority') t.priority = to || null;
+  else if (g === 'project_id') t.project_id = Number(to);
+  else if (g === 'assignees') {
+    const list = to ? [...new Set([...t.assignees.filter((x) => x !== from), to])] : [];
+    t.assignees = USERS.map((u) => u.id).filter((x) => list.includes(x));
+  } else return; // "Creado por" no se modifica
+  await Api.saveTask(t);
+}
+
+function renderBoard() {
+  const g = prefs.groupBy || 'status';
+  const list = sortedTasks();
+  const readOnly = g === 'created_by';
+  $('#group-tool').innerHTML = `${TOGGLE_ICON}Propiedades`;
+  $('#board-view').innerHTML = boardLanes(g).map(([k, head, bg]) => {
+    const items = list.filter((t) => laneValues(t, g).includes(k));
+    return `<div class="lane" data-lane="${esc(k)}" style="background:${bg || '#f7f7f5'}">
+      <div class="lane-h">${head}<span class="n">${items.length}</span></div>
       <div class="cards">${items.map((t) => `
-        <div class="card" draggable="true" data-open="${t.id}" data-card="${t.id}">
+        <div class="card" ${readOnly ? '' : 'draggable="true"'} data-open="${t.id}" data-card="${t.id}">
           ${t.title ? esc(t.title) : '<span class="untitled">Sin título</span>'}
         </div>`).join('')}</div>
-      <div class="new-card" data-new-in="${k}">＋ Nueva</div>
+      <div class="new-card" data-new-in="${esc(k)}">＋ Nueva</div>
     </div>`;
   }).join('');
+}
+
+function openGroupMenu(anchor) {
+  const g = prefs.groupBy || 'status';
+  openPopover(anchor, `<div class="title">Agrupar columnas por</div>` + Object.entries(GROUP_LABEL).map(([k, l]) =>
+    `<div class="opt" data-group="${k}">${l}<span class="chk">${k === g ? '✓' : ''}</span></div>`).join(''));
+  pop().dataset.kind = 'group';
+  pop().style.minWidth = '220px';
 }
 
 async function setStatus(t, status) {
@@ -834,9 +880,9 @@ function resetDeleteBtn() {
 }
 
 // Crea una tarea en el proyecto actual y abre su panel con el título listo para escribir
-async function createNewTask(status = 'todo') {
+async function createNewTask(extra = {}) {
   const project_id = isAllView() ? (state.projects.find((p) => !p.archived) || state.projects[0]).id : prefs.project;
-  const t = await Api.createTask({ project_id, created_by: CURRENT_USER, assignees: [CURRENT_USER], status });
+  const t = await Api.createTask({ project_id, created_by: CURRENT_USER, assignees: [CURRENT_USER], status: 'todo', ...extra });
   state.tasks.push(t);
   renderTable();
   await openTask(t.id);
@@ -1329,8 +1375,10 @@ document.addEventListener('click', async (e) => {
     if (am.dataset.account === 'logout') setLoggedOut(true);
     return;
   }
+  const gp = target.closest('[data-group]');
+  if (gp) { prefs.groupBy = gp.dataset.group; savePrefs(); closePopover(); renderTable(); return; }
   if (pop().contains(target)) return;
-  if (pop().classList.contains('open') && !target.closest('#add-dep, #cols-tool, #add-user, #pick-project, #pick-due')) { closePopover(); }
+  if (pop().classList.contains('open') && !target.closest('#add-dep, #cols-tool, #group-tool, #add-user, #pick-project, #pick-due')) { closePopover(); }
 
   // Borrar adjunto (antes que el enlace de descarga)
   const delAtt = target.closest('[data-del-att]');
@@ -1385,6 +1433,7 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if (target.closest('#add-dep')) { openDepPicker(target.closest('#add-dep')); return; }
+  if (target.closest('#group-tool')) { openGroupMenu(target.closest('#group-tool')); return; }
   if (target.closest('#cols-tool')) { openColumnsMenu(target.closest('#cols-tool')); return; }
   if (target.closest('#search-tool')) { $('#search-box').classList.add('open'); $('#search').focus(); return; }
   if (target.closest('#search-clear')) { clearSearch(); return; }
@@ -1465,7 +1514,20 @@ document.addEventListener('click', async (e) => {
 
   // Nueva tarea
   const lane = target.closest('[data-new-in]');
-  if (target.closest('#new-task, #add-row') || lane) { await createNewTask(lane ? lane.dataset.newIn : 'todo'); return; }
+  if (target.closest('#new-task, #add-row') || lane) {
+    // "+ Nueva" en una columna del Kanban crea la tarea con el valor de esa columna
+    const g = prefs.groupBy || 'status', v = lane ? lane.dataset.newIn : null;
+    const extra = {};
+    if (lane) {
+      if (g === 'status') extra.status = v;
+      if (g === 'priority') extra.priority = v || null;
+      if (g === 'project_id') extra.project_id = Number(v);
+      if (g === 'assignees') extra.assignees = v ? [v] : [];
+      if (g === 'created_by') extra.created_by = v;
+    }
+    await createNewTask(extra);
+    return;
+  }
 
   // Eliminar tarea
   if (target.closest('#delete-task')) {
@@ -1872,10 +1934,12 @@ rowsEl.addEventListener('drop', async (e) => {
 rowsEl.addEventListener('dragend', () => { dragRow = null; clearRowMarks(); });
 
 const board = $('#board-view');
+let dragFromLane = null;
 board.addEventListener('dragstart', (e) => {
   const c = e.target.closest('[data-card]');
   if (!c) return;
   e.dataTransfer.setData('text/x-task', c.dataset.card);
+  dragFromLane = c.closest('[data-lane]').dataset.lane;
   e.dataTransfer.effectAllowed = 'move';
   c.classList.add('dragging');
 });
@@ -1908,7 +1972,7 @@ board.addEventListener('drop', async (e) => {
   if (!l || !id) return;
   e.preventDefault();
   const tgt = prefs.sort.key ? null : cardDropTarget(l, e.clientY);
-  await setStatus(byId(id), l.dataset.lane);
+  await moveToLane(byId(id), prefs.groupBy || 'status', dragFromLane, l.dataset.lane);
   if (tgt) await moveTask(id, Number(tgt.card.dataset.card), tgt.after);
   renderTable();
 });
