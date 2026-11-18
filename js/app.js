@@ -557,16 +557,35 @@ async function addFiles(fileList) {
 
 /* ---------- Popover (dependencias y propiedades visibles) ---------- */
 const pop = () => $('#popover');
+// Los menús se posicionan junto a su ancla y siempre dentro de la ventana.
+// Se recalcula después de que quien lo abre ajusta el ancho, y cuando cambia el contenido o el tamaño.
+let popAnchorRect = null;
+function placePopover() {
+  const el = pop();
+  if (!el.classList.contains('open') || !popAnchorRect) return;
+  const r = popAnchorRect, M = 8;
+  el.style.maxHeight = '';
+  const w = Math.min(el.offsetWidth, innerWidth - 2 * M);
+  const below = innerHeight - r.bottom - M - 4, above = r.top - M - 4;
+  let h = el.offsetHeight;
+  const goUp = h > below && above > below;
+  const room = goUp ? above : below;
+  if (h > room) { el.style.maxHeight = `${room}px`; h = room; }
+  el.style.left = `${Math.max(M, Math.min(r.left, innerWidth - w - M))}px`;
+  el.style.top = `${goUp ? r.top - h - 4 : r.bottom + 4}px`;
+}
 function openPopover(anchor, html) {
   const el = pop();
   el.style.maxWidth = '';
+  el.style.minWidth = '';
   el.innerHTML = html;
   el.classList.add('open');
-  const r = anchor.getBoundingClientRect();
-  const w = el.offsetWidth, h = el.offsetHeight;
-  el.style.left = `${Math.max(8, Math.min(r.left, innerWidth - w - 8))}px`;
-  el.style.top = `${r.bottom + h + 8 > innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4}px`;
+  popAnchorRect = anchor.getBoundingClientRect();
+  placePopover();
+  requestAnimationFrame(placePopover); // tras ajustar minWidth/maxWidth
 }
+new ResizeObserver(() => placePopover()).observe(pop());
+window.addEventListener('resize', placePopover);
 function closePopover() { pop().classList.remove('open'); pop().dataset.kind = ''; }
 
 function openDepPicker(anchor, taskId = state.openId) {

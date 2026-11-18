@@ -557,3 +557,6 @@ tbody tr.drop-above td:not(.gutter) { box-shadow: inset 0 2px 0 var(--accent); }
 tbody tr.drop-below td:not(.gutter) { box-shadow: inset 0 -2px 0 var(--accent); }
 .card.drop-above { box-shadow: 0 -3px 0 var(--accent), 0 0 0 1px rgba(15,15,15,.08); }
 .card.drop-below { box-shadow: 0 3px 0 var(--accent), 0 0 0 1px rgba(15,15,15,.08); }
+
+/* Menús: nunca más anchos que la ventana; si no caben en alto, se desplazan por dentro */
+.popover { max-width: min(360px, calc(100vw - 16px)); overflow-y: auto; }
