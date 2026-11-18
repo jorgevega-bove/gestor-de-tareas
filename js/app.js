@@ -569,7 +569,15 @@ function renderPanel() {
 
 function autoGrow(el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; }
 
-async function openTask(id) {
+// Historial del panel: al ir de una tarea a otra (enlaces del panel) se puede volver con la flecha
+const panelHistory = [];
+function updateBackBtn() {
+  while (panelHistory.length && !byId(panelHistory[panelHistory.length - 1])) panelHistory.pop();
+  $('#panel-back').hidden = !panelHistory.length;
+}
+
+async function openTask(id, { back = false } = {}) {
+  if (state.openId && state.openId !== id && !back) panelHistory.push(state.openId);
   if (state.openId !== id) {
     closePopover();
     revokeUrls();
@@ -578,14 +586,15 @@ async function openTask(id) {
   state.addingTime = false;
   [state.comments, state.attachments] = await Promise.all([Api.listComments(id), Api.listAttachments(id)]);
   state.comments.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id);
-  const wasOpen = $('#overlay').classList.contains('open');
   $('#overlay').classList.add('open');
   renderPanel();
-  if (!wasOpen) $('#overlay').scrollTop = 0;
+  $('#overlay').scrollTop = 0; // cada tarea se abre desde arriba
   resetDeleteBtn();
+  updateBackBtn();
 }
 
 function closeTask() {
+  panelHistory.length = 0;
   $('#overlay').classList.remove('open');
   closePopover();
   state.openId = null;
@@ -1616,6 +1625,7 @@ document.addEventListener('click', async (e) => {
 
 
   // Cerrar panel
+  if (target.closest('#panel-back')) { const prev = panelHistory.pop(); if (prev && byId(prev)) await openTask(prev, { back: true }); else updateBackBtn(); return; }
   if (target.id === 'overlay' || target.closest('#close')) { closeTask(); }
 });
 
