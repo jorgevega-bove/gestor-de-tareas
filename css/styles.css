@@ -610,3 +610,4 @@ tbody tr.selected td.c-title { box-shadow: inset 2px 0 0 var(--accent); }
 .psec.closed .psec-body { display: none; }
 .psec.closed .psec-h { margin-bottom: 0; }
 .psec.closed .attach-btn { display: none; }
+#panel-back[hidden] { display: none; }
