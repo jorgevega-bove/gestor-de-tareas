@@ -2250,6 +2250,12 @@ async function refreshFromServer() {
   await afterHistoryChange();
 }
 
+// Si una operación falla sin que nadie la atienda, se avisa en vez de fallar en silencio
+window.addEventListener('unhandledrejection', (e) => {
+  console.error(e.reason);
+  toast(`Algo falló: ${(e.reason && e.reason.message) || e.reason}`);
+});
+
 (async () => {
   try {
     if (SHARED()) await sharedSignIn();
@@ -2293,7 +2299,10 @@ async function refreshFromServer() {
   if (!isAllView() && !projectById(prefs.project)) { prefs.project = state.projects[0].id; savePrefs(); }
   renderAccount();
   $('#logged-out').hidden = SHARED() || !prefs.loggedOut;
-  if (SHARED()) Api.onRemoteChange(refreshFromServer);
+  if (SHARED()) {
+    Api.onError = () => toast('No se pudo guardar el último cambio en la nube. Se recargaron los datos.');
+    Api.onRemoteChange(refreshFromServer);
+  }
   renderSidebar();
   renderTable();
 })();

@@ -121,6 +121,18 @@ Después, cada persona entra a esa dirección con su correo y, la primera vez, e
 
 ---
 
+## Cómo viajan los datos
+
+La app está pensada para que cada acción cueste lo mismo aunque se acumulen miles de tareas (idea tomada de planner7):
+
+- **Al entrar** se descargan personas, proyectos y tareas una sola vez y se guarda una foto de lo último sincronizado.
+- **Al guardar** se compara contra esa foto: viaja solo el campo que cambió (por ejemplo, la prioridad de una tarea), sin volver a leer nada antes. Si cambian varias tareas a la vez (reordenar, selección múltiple), se envían juntas en un solo lote. De responsables y dependencias se envía solo lo que se agregó o quitó.
+- **Cambios de otras personas**: llegan en tiempo real fila por fila y se aplican a la foto. No se vuelve a descargar todo.
+- **Comentarios y archivos** se piden solo al abrir una tarea.
+- **Si un envío falla** se reintenta 3 veces. Si aun así no se puede, la app avisa y vuelve a descargar los datos para no quedar distinta de la nube.
+
+A diferencia de planner7 (que guarda los hábitos como un documento por persona), aquí cada tarea es una fila con sus columnas: así dos personas pueden editar campos distintos de la misma tarea al mismo tiempo sin pisarse.
+
 ## Volver al modo local
 
 Deja vacíos `supabaseUrl` y `supabaseAnonKey` en `js/config.js` y recarga. La app vuelve a usar los datos guardados en el navegador. Los datos de Supabase no se tocan.
