@@ -505,7 +505,7 @@ th .funnel svg.line-ico { width: 13px; height: 13px; stroke: var(--accent); }
 
 /* ---------- Panel de tarea: campos más compactos (-15%) ---------- */
 .props { row-gap: 0; }
-.p-label, .p-val { min-height: 29px; }
+.p-label, .p-val { min-height: 31px; } /* 29px + 7% */
 .p-val { padding-top: 2px; padding-bottom: 2px; }
 
 /* Selector de fecha y hora: sin el ícono nativo del navegador a la derecha (ya hay ícono a la izquierda) */
