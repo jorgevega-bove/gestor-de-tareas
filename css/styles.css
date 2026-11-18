@@ -24,10 +24,10 @@
   --danger-bg: #2E1D21;
   /* Estados: funcionales de BOVE (off · acento · warn · yes) en su versión para fondo oscuro,
      más brillantes, como hace la marca con el teal (#0B7A75 sobre claro → #14A89F sobre oscuro) */
-  --red: #EF5A4E;     --red-tag: #5C2E30; --red-ink: #F17369; --red-card: #372428; --red-card-h: #47282C; --red-lane: #1E1C23; --red-edge: #7C3836;
-  --blue: #1FC4B9;    --blue-tag: #115556; --blue-ink: #41CDC4; --blue-card: #0D393E; --blue-card-h: #0F4549; --blue-lane: #0B262D; --blue-edge: #146D6C;
-  --yellow: #EBC43F;  --yellow-tag: #5A552B; --yellow-ink: #EECD5C; --yellow-card: #363925; --yellow-card-h: #464528; --yellow-lane: #1D2622; --yellow-edge: #7A6D2F;
-  --green: #3CCB7A;   --green-tag: #1B5740; --green-ink: #59D38E; --green-card: #133A31; --green-card-h: #174738; --green-lane: #0E2627; --green-edge: #22704C;
+  --red: #EF5A4E;     --red-tag: #5C2E30; --red-ink: #FFFFFF; --red-card: #372428; --red-card-h: #47282C; --red-lane: #1E1C23; --red-edge: #7C3836;
+  --blue: #1FC4B9;    --blue-tag: #115556; --blue-ink: #FFFFFF; --blue-card: #0D393E; --blue-card-h: #0F4549; --blue-lane: #0B262D; --blue-edge: #146D6C;
+  --yellow: #EBC43F;  --yellow-tag: #5A552B; --yellow-ink: #FFFFFF; --yellow-card: #363925; --yellow-card-h: #464528; --yellow-lane: #1D2622; --yellow-edge: #7A6D2F;
+  --green: #3CCB7A;   --green-tag: #1B5740; --green-ink: #FFFFFF; --green-card: #133A31; --green-card-h: #174738; --green-lane: #0E2627; --green-edge: #22704C;
   --gray-tag: #1A3040; --gray-ink: #C9CDD1;
   --scrim: rgba(3, 9, 13, .72);
   --shadow-overlay: 0 0 0 1px #1C3242, 0 8px 16px rgba(0,0,0,.35), 0 24px 48px rgba(0,0,0,.4);
