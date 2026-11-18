@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 120" width="460" height="120">
+  <g fill="none" stroke="#F2F2F0" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 12 V108"></path>
+    <path d="M14 12 H44 C80 12 80 60 44 60 H14"></path>
+    <path d="M14 60 H44 C80 60 80 108 44 108 H14"></path>
+    <circle cx="150" cy="60" r="44"></circle>
+    <polyline points="220 20 260 100 300 20"></polyline>
+    <path d="M326 20 H390"></path>
+    <path d="M326 60 H390"></path>
+    <path d="M326 100 H390"></path>
+  </g>
+  <g fill="none" stroke="#F2F2F0" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" transform="translate(274.88,20.8) scale(0.32)">
+    <polyline points="416 100 448 20 480 100"></polyline>
+    <path d="M428 70 H468"></path>
+    <path d="M506 20 V100"></path>
+  </g>
+</svg>

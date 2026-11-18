@@ -159,7 +159,8 @@ const people = (ids) => (ids || []).filter(user).map(person).join('');
 const assigneeNames = (t) => (t.assignees || []).map(userName).filter(Boolean).join(', ');
 const projectById = (id) => state.projects.find((p) => p.id === Number(id));
 const projectName = (id) => (projectById(id) ? projectById(id).name : null);
-const projectTag = (id) => (projectById(id) ? `<span class="tag t${Number(id) % 6}">${esc(projectName(id))}</span>` : '');
+// Los proyectos no llevan color: todos usan el mismo contenedor gris
+const projectTag = (id) => (projectById(id) ? `<span class="tag c-gray">${esc(projectName(id))}</span>` : '');
 const EMPTY = '<span class="empty">Vacío</span>';
 
 /* ---------- Filtros (solo columnas con opciones definidas) ---------- */
@@ -321,7 +322,7 @@ function renderTable() {
 /* ---------- Tablero (Kanban) ---------- */
 /* ---------- Kanban: agrupar por un campo ---------- */
 const GROUP_LABEL = { status: 'Estado', assignees: 'Responsable', priority: 'Prioridad' };
-const LANE_BG = { 'c-red': '#fdf5f4', 'c-blue': '#f4f8fb', 'c-yellow': '#fdf9ee', 'c-green': '#f5f9f5' };
+const LANE_BG = { 'c-red': 'var(--red-lane)', 'c-blue': 'var(--blue-lane)', 'c-yellow': 'var(--yellow-lane)', 'c-green': 'var(--green-lane)' };
 // Columnas del Kanban según el campo elegido: [valor, encabezado, color de fondo]
 function boardLanes(g) {
   const stSel = prefs.filters.status || [];
@@ -366,7 +367,7 @@ function renderBoard() {
   $('#group-tool').innerHTML = `${TOGGLE_ICON}Propiedades`;
   $('#board-view').innerHTML = boardLanes(g).map(([k, head, bg]) => {
     const items = list.filter((t) => laneValues(t, g).includes(k));
-    return `<div class="lane" data-lane="${esc(k)}" style="background:${bg || '#f7f7f5'}">
+    return `<div class="lane" data-lane="${esc(k)}" style="background:${bg || 'var(--sidebar)'}">
       <div class="lane-h">${head}<span class="n">${items.length}</span></div>
       <div class="cards">${items.map((t) => `
         <div class="card ${g === 'assignees' ? `st-${t.status}` : ''}" ${readOnly ? '' : 'draggable="true"'} data-open="${t.id}" data-card="${t.id}">
@@ -498,8 +499,7 @@ const urlFor = (a) => {
 
 function extStyle(name) {
   const ext = (name.split('.').pop() || '').toLowerCase();
-  const c = { pdf: '#e5534b', xls: '#2f8a4f', xlsx: '#2f8a4f', csv: '#2f8a4f', doc: '#2f6fd6', docx: '#2f6fd6',
-    ppt: '#d9730d', pptx: '#d9730d', zip: '#787774', rar: '#787774', mp4: '#9065b0', mov: '#9065b0', dwg: '#c14c8a' }[ext] || '#9b9a97';
+  const c = 'var(--hover-2)'; // sin color por tipo: el color queda reservado para los estados
   return { label: (ext || 'file').slice(0, 4).toUpperCase(), color: c };
 }
 
@@ -2164,7 +2164,7 @@ board.addEventListener('drop', async (e) => {
  *  Modo compartido (Supabase): inicio de sesión con código al correo
  * ============================================================ */
 function loginCard(html) {
-  $('#logged-out').innerHTML = `<div class="lo-card"><div class="ws-icon lo-logo">B</div>${html}</div>`;
+  $('#logged-out').innerHTML = `<div class="lo-card"><img class="lo-logo-img" src="assets/bove-white.svg" alt="BOVE">${html}</div>`;
   $('#logged-out').hidden = false;
 }
 // Pide el correo, envía un código y lo verifica. Termina cuando hay sesión iniciada.
