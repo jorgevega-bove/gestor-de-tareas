@@ -10,7 +10,7 @@ Por ahora los datos se guardan en el navegador (IndexedDB), así que cada comput
 
 ## Funciones
 
-- Vista de **tabla** ordenable por columna, con columnas que se reordenan arrastrando y se ocultan (botón "Propiedades").
+- Vista de **tabla**: clic en un encabezado para Ordenar o Filtrar (con casillas en Estado, Prioridad, Responsable, Proyecto y Creado por); con columnas que se reordenan arrastrando y se ocultan (botón "Propiedades").
 - Vista de **tablero** (Kanban) por estado; las tarjetas se arrastran entre columnas.
 - Búsqueda por título, texto, ID, proyecto o responsable (Cmd+F).
 - Panel de detalle con propiedades, comentarios, texto libre, fotos y archivos adjuntos.

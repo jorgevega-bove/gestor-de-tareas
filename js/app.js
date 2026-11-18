@@ -72,6 +72,7 @@ const prefs = (() => {
 prefs.user = prefs.user || 'jorge';
 prefs.sort = prefs.sort || { key: null, dir: null };
 prefs.view = prefs.view || 'table';
+prefs.filters = prefs.filters || {};
 prefs.hidden = prefs.hidden || COLUMNS.filter((c) => c.hidden).map((c) => c.key);
 // Orden de columnas: se respeta el guardado y se agregan al final columnas nuevas
 prefs.order = [
@@ -136,6 +137,39 @@ const person = (id) => (user(id) ? `<span class="tag c-gray person">${esc(user(i
 const people = (ids) => (ids || []).filter(user).map(person).join('');
 const assigneeNames = (t) => (t.assignees || []).map(userName).filter(Boolean).join(', ');
 const projectTag = (p) => (p ? `<span class="tag t${hashIdx(p, 6)}">${esc(p)}</span>` : '');
+const EMPTY = '<span class="empty">Vacío</span>';
+
+/* ---------- Filtros (solo columnas con opciones definidas) ---------- */
+const FILTERS = {
+  status: {
+    options: () => Object.keys(STATUS),
+    show: (v) => pill(STATUS, v), text: (v) => STATUS[v].label,
+    values: (t) => [t.status],
+  },
+  priority: {
+    options: () => [...Object.keys(PRIORITY), ''],
+    show: (v) => (v ? pill(PRIORITY, v) : EMPTY), text: (v) => (v ? PRIORITY[v].label : 'Vacío'),
+    values: (t) => [t.priority || ''],
+  },
+  assignees: {
+    options: () => [...USERS.map((u) => u.id), ''],
+    show: (v) => (v ? person(v) : EMPTY), text: (v) => (v ? userName(v) : 'Vacío'),
+    values: (t) => (t.assignees.length ? t.assignees : ['']),
+  },
+  project: {
+    options: () => [...new Set(state.tasks.map((t) => t.project).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')).concat(''),
+    show: (v) => (v ? projectTag(v) : EMPTY), text: (v) => v || 'Vacío',
+    values: (t) => [t.project || ''],
+  },
+  created_by: {
+    options: () => USERS.map((u) => u.id),
+    show: (v) => person(v), text: (v) => userName(v),
+    values: (t) => [t.created_by],
+  },
+};
+const activeFilters = () => Object.entries(prefs.filters).filter(([k, v]) => FILTERS[k] && v.length);
+const matchesFilters = (t) => activeFilters().every(([k, sel]) => FILTERS[k].values(t).some((v) => sel.includes(v)));
+const isFiltering = () => !!state.query.trim() || activeFilters().length > 0;
 const depChip = (t, removable = false) =>
   `<span class="dep" data-open="${t.id}" title="${esc(t.title)}">${code(t)}</span>` +
   (removable ? `<button class="mini dep-x" data-remove-dep="${t.id}" title="Quitar">×</button>` : '');
@@ -185,7 +219,7 @@ function matchesQuery(t) {
 }
 
 function sortedTasks() {
-  const list = state.tasks.filter(matchesQuery);
+  const list = state.tasks.filter((t) => matchesQuery(t) && matchesFilters(t));
   const { key, dir } = prefs.sort;
   const col = COLUMNS.find((c) => c.key === key);
   if (!col) return list.sort((a, b) => a.id - b.id);
@@ -235,7 +269,8 @@ function renderTable() {
 /* ---------- Tablero (Kanban) ---------- */
 function renderBoard() {
   const list = sortedTasks();
-  $('#board-view').innerHTML = Object.entries(STATUS).map(([k, s]) => {
+  const stSel = prefs.filters.status || [];
+  $('#board-view').innerHTML = Object.entries(STATUS).filter(([k]) => !stSel.length || stSel.includes(k)).map(([k]) => {
     const items = list.filter((t) => t.status === k);
     return `<div class="lane l-${k}" data-lane="${k}">
       <div class="lane-h">${pill(STATUS, k)}<span class="n">${items.length}</span></div>
@@ -260,14 +295,15 @@ function renderTableView() {
   const cols = visibleColumns();
   const { key, dir } = prefs.sort;
   $('#thead').innerHTML = `<tr><th class="gutter"></th>${cols.map((c) => `
-    <th data-sort="${c.key}" data-col="${c.key}" draggable="true" class="${c.key === key ? 'sorted' : ''}" title="Clic para ordenar · arrastra para mover">
-      <div class="h">${icon(c.icon)}${c.label}<span class="arrow">${c.key === key ? (dir === 'asc' ? '↑' : '↓') : ''}</span></div>
+    <th data-head="${c.key}" data-col="${c.key}" draggable="true" class="${c.key === key ? 'sorted' : ''} ${(prefs.filters[c.key] || []).length ? 'filtered' : ''}" title="Clic para ordenar o filtrar · arrastra para mover">
+      <div class="h">${icon(c.icon)}${c.label}<span class="arrow">${(prefs.filters[c.key] || []).length ? '<span class="funnel">⏷</span>' : ''}${c.key === key ? (dir === 'asc' ? '↑' : '↓') : ''}</span></div>
     </th>`).join('')}</tr>`;
   const shown = sortedTasks();
-  $('#rows').innerHTML = shown.length ? '' : `<tr class="no-results"><td></td><td colspan="${cols.length}">Ninguna tarea coincide con “${esc(state.query)}”</td></tr>`;
+  $('#rows').innerHTML = shown.length ? '' : `<tr class="no-results"><td></td><td colspan="${cols.length}">${state.tasks.length ? 'Ninguna tarea coincide con la búsqueda o los filtros' : 'Todavía no hay tareas'}</td></tr>`;
   $('#rows').innerHTML += shown.map((t) =>
     `<tr data-open="${t.id}"><td class="gutter"><button class="row-del" data-del-task="${t.id}" title="Eliminar tarea">${icon('trash')}</button></td>${cols.map((c) => cell(c, t)).join('')}</tr>`).join('');
-  $('#count').textContent = state.query.trim() ? `${shown.length} de ${state.tasks.length}` : state.tasks.length;
+  $('#count').textContent = isFiltering() ? `${shown.length} de ${state.tasks.length}` : state.tasks.length;
+  renderFilterBar();
   $('#sort-tool').classList.toggle('on', !!key);
   $('#sort-tool').hidden = !key;
   $('#sort-tool').innerHTML = key
@@ -277,13 +313,72 @@ function renderTableView() {
     .sort().map((p) => `<option value="${esc(p)}">`).join('');
 }
 
-function cycleSort(key) {
+function applySort(key) {
+  // Primer clic: ascendente (A→Z, 0→9). Clics siguientes: invierte el orden.
   const s = prefs.sort;
-  if (s.key !== key) prefs.sort = { key, dir: 'asc' };
-  else if (s.dir === 'asc') prefs.sort = { key, dir: 'desc' };
-  else prefs.sort = { key: null, dir: null };
+  prefs.sort = s.key === key && s.dir === 'asc' ? { key, dir: 'desc' } : { key, dir: 'asc' };
   savePrefs();
   renderTable();
+}
+
+/* ---------- Menú del encabezado ---------- */
+function openHeaderMenu(anchor, key) {
+  const col = COLUMNS.find((c) => c.key === key);
+  const s = prefs.sort;
+  const sortLabel = s.key !== key ? '' : s.dir === 'asc' ? '<span class="hint-r">A → Z ↑</span>' : '<span class="hint-r">Z → A ↓</span>';
+  const nFilter = (prefs.filters[key] || []).length;
+  openPopover(anchor, `
+    <div class="title">${col.label}</div>
+    <div class="opt" data-hm-sort="${key}">↕&nbsp; Ordenar ${sortLabel}</div>
+    ${FILTERS[key] ? `<div class="opt" data-hm-filter="${key}">⏷&nbsp; Filtro ${nFilter ? `<span class="hint-r">${nFilter} seleccionado${nFilter > 1 ? 's' : ''}</span>` : ''}</div>` : ''}
+    ${s.key === key ? '<div class="opt muted-opt" data-hm-unsort>✕&nbsp; Quitar orden</div>' : ''}`);
+  pop().dataset.kind = 'head';
+  pop().style.minWidth = '220px';
+}
+
+function openFilter(anchor, key) {
+  const col = COLUMNS.find((c) => c.key === key);
+  openPopover(anchor, `
+    <div class="title">${col.label} es</div>
+    <input class="search" id="flt-search" placeholder="Seleccionar una o varias opciones…" autocomplete="off">
+    <div class="opts" id="flt-opts"></div>
+    <div id="flt-foot"></div>`);
+  pop().dataset.kind = 'filter';
+  pop().dataset.key = key;
+  pop().style.minWidth = '260px';
+  renderFilterOpts();
+  const inp = $('#flt-search');
+  inp.oninput = renderFilterOpts;
+  inp.focus();
+}
+
+function renderFilterOpts() {
+  const key = pop().dataset.key;
+  const f = FILTERS[key];
+  const sel = prefs.filters[key] || [];
+  const q = norm($('#flt-search').value);
+  const opts = f.options().filter((v) => norm(f.text(v)).includes(q));
+  $('#flt-opts').innerHTML = opts.map((v) => `
+    <div class="opt" data-flt-val="${esc(v)}"><span class="cb ${sel.includes(v) ? 'on' : ''}"></span>${f.show(v)}</div>`).join('')
+    || '<div class="title">Sin opciones</div>';
+  $('#flt-foot').innerHTML = sel.length ? '<div class="opt muted-opt" data-flt-clear>✕&nbsp; Quitar filtro</div>' : '';
+}
+
+function setFilter(key, values) {
+  if (values.length) prefs.filters[key] = values; else delete prefs.filters[key];
+  savePrefs();
+  renderTable();
+}
+
+function renderFilterBar() {
+  const af = activeFilters();
+  const bar = $('#filter-bar');
+  bar.hidden = !af.length;
+  bar.innerHTML = af.map(([k, sel]) => {
+    const col = COLUMNS.find((c) => c.key === k);
+    const txt = sel.map((v) => FILTERS[k].text(v)).join(', ');
+    return `<span class="fchip"><button class="fchip-b" data-fchip="${k}">${col.label}: <b>${esc(txt)}</b> ▾</button><button class="fchip-x" data-fclear="${k}" title="Quitar filtro">×</button></span>`;
+  }).join('') + (af.length > 1 ? '<button class="mini" data-fclear-all>Quitar todos</button>' : '');
 }
 
 /* ============================================================
@@ -577,6 +672,26 @@ document.addEventListener('click', async (e) => {
     renderTable();
     return;
   }
+  const fv = target.closest('[data-flt-val]');
+  if (fv) {
+    const key = pop().dataset.key;
+    const v = fv.dataset.fltVal;
+    const sel = prefs.filters[key] || [];
+    setFilter(key, sel.includes(v) ? sel.filter((x) => x !== v) : [...sel, v]);
+    renderFilterOpts();
+    return;
+  }
+  if (target.closest('[data-flt-clear]')) { setFilter(pop().dataset.key, []); renderFilterOpts(); return; }
+  const hs = target.closest('[data-hm-sort]');
+  if (hs) { closePopover(); applySort(hs.dataset.hmSort); return; }
+  const hf = target.closest('[data-hm-filter]');
+  if (hf) {
+    const r = pop().getBoundingClientRect();
+    const anchor = { getBoundingClientRect: () => ({ left: r.left, top: r.top, bottom: r.top }) };
+    openFilter(anchor, hf.dataset.hmFilter);
+    return;
+  }
+  if (target.closest('[data-hm-unsort]')) { closePopover(); prefs.sort = { key: null, dir: null }; savePrefs(); renderTable(); return; }
   if (pop().contains(target)) return;
   if (pop().classList.contains('open') && !target.closest('#add-dep, #cols-tool, #add-user')) { closePopover(); }
 
@@ -654,8 +769,13 @@ document.addEventListener('click', async (e) => {
   if (open) { openTask(Number(open.dataset.open)); return; }
 
   // Ordenar por columna
-  const th = target.closest('th[data-sort]');
-  if (th) { cycleSort(th.dataset.sort); return; }
+  const th = target.closest('th[data-head]');
+  if (th) { openHeaderMenu(th, th.dataset.head); return; }
+  const fc = target.closest('[data-fchip]');
+  if (fc) { openFilter(fc, fc.dataset.fchip); return; }
+  const fx = target.closest('[data-fclear]');
+  if (fx) { setFilter(fx.dataset.fclear, []); return; }
+  if (target.closest('[data-fclear-all]')) { prefs.filters = {}; savePrefs(); renderTable(); return; }
 
   // Cambiar de vista
   const vt = target.closest('[data-view]');

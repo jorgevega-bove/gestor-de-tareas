@@ -313,3 +313,21 @@ th.drop-after { box-shadow: inset -3px 0 0 var(--accent); }
 .tag-x:hover { color: var(--text); }
 .p-val .people + .mini { margin-left: 6px; }
 .comment-new .tag { flex-shrink: 0; }
+
+/* ---------- Menú de encabezado y filtros ---------- */
+.popover .hint-r { margin-left: auto; color: var(--text-3); font-size: 12px; padding-left: 12px; }
+.popover .muted-opt { color: var(--text-2); }
+.popover #flt-foot .opt { border-top: 1px solid var(--border); margin-top: 4px; border-radius: 0 0 4px 4px; }
+.cb { width: 16px; height: 16px; border-radius: 3px; border: 1.5px solid #c7c6c3; flex-shrink: 0; display: inline-grid; place-items: center; }
+.cb.on { background: var(--accent); border-color: var(--accent); }
+.cb.on::after { content: "✓"; color: #fff; font-size: 11px; font-weight: 700; line-height: 1; }
+th.filtered { color: var(--accent); }
+th.filtered .h svg { fill: var(--accent); }
+th .funnel { font-size: 11px; margin-right: 4px; }
+.filter-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 0 2px; }
+.filter-bar[hidden] { display: none; }
+.fchip { display: inline-flex; align-items: center; border: 1px solid rgba(35,131,226,.35); background: rgba(35,131,226,.06); border-radius: 14px; color: var(--accent); font-size: 13px; }
+.fchip button { border: none; background: none; color: inherit; cursor: pointer; padding: 2px 4px 2px 10px; font-size: 13px; }
+.fchip b { font-weight: 500; }
+.fchip .fchip-x { padding: 2px 9px 2px 2px; font-size: 14px; }
+.fchip button:hover { color: #0b5cad; }
