@@ -23,7 +23,7 @@ Por ahora los datos se guardan en el navegador (IndexedDB), así que cada comput
 
 ## Estados
 
-No completada · En curso · Dependencia interna · Dependencia externa · Dependencia mixta · Completada
+No completada · En curso · En espera · Completada
 
 ## Estructura
 

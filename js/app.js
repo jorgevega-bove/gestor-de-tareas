@@ -8,9 +8,7 @@ let USERS = [];
 const STATUS = {
   todo:    { label: 'No completada',       cls: 'c-red',    order: 0 },
   doing:   { label: 'En curso',            cls: 'c-blue',   order: 1 },
-  dep_int: { label: 'Dependencia interna', cls: 'c-gray',   order: 2 },
-  dep_ext: { label: 'Dependencia externa', cls: 'c-gray',   order: 3 },
-  dep_mix: { label: 'Dependencia mixta',   cls: 'c-gray',   order: 4 },
+  wait:    { label: 'En espera',           cls: 'c-yellow', order: 2 },
   done:    { label: 'Completada',          cls: 'c-green',  order: 5 },
 };
 
@@ -73,6 +71,7 @@ delete CURRENT_USER;
 prefs.sort = prefs.sort || { key: null, dir: null };
 prefs.view = prefs.view || 'table';
 prefs.filters = prefs.filters || {};
+if (prefs.filters.status) prefs.filters.status = prefs.filters.status.filter((v) => v in STATUS);
 prefs.hidden = prefs.hidden || COLUMNS.filter((c) => c.hidden).map((c) => c.key);
 // Orden de columnas: se respeta el guardado y se agregan al final columnas nuevas
 prefs.order = [
@@ -184,29 +183,27 @@ const depChip = (t, removable = false, link = true) =>
 /* ============================================================
  *  Regla automática de dependencias
  *  - Cuando todas las tareas de las que depende X están completadas:
- *      Dependencia interna → No completada
- *      Dependencia mixta   → Dependencia externa (sigue esperando algo de afuera)
+ *      En espera → No completada
  *  - Al agregar una dependencia sin completar:
- *      No completada / En curso → Dependencia interna
- *      Dependencia externa      → Dependencia mixta
+ *      No completada / En curso → En espera
  * ============================================================ */
-async function releaseIfFree(t) {
-  if (!t || !['dep_int', 'dep_mix'].includes(t.status)) return;
+// hadDeps: la tarea tenía dependencias justo antes (cuando se quita una o se elimina la tarea de la que dependía)
+async function releaseIfFree(t, hadDeps = false) {
+  if (!t || t.status !== 'wait') return;
+  if (!t.depends_on.length && !hadDeps) return; // espera algo externo: no se libera sola
   if (blockedBy(t).length) return;
-  const next = t.status === 'dep_int' ? 'todo' : 'dep_ext';
-  t.status = next;
+  t.status = 'todo';
   await Api.saveTask(t);
-  toast(`La tarea ${t.id} ya no espera otras tareas → ${STATUS[next].label}`);
+  toast(`La tarea ${t.id} ya no espera otras tareas → ${STATUS.todo.label}`);
 }
 async function onTaskCompleted(t) {
   for (const dep of blocking(t)) await releaseIfFree(dep);
 }
 async function onDependencyAdded(t, depTask) {
   if (depTask.status === 'done') return;
-  const map = { todo: 'dep_int', doing: 'dep_int', dep_ext: 'dep_mix' };
-  if (map[t.status]) {
-    t.status = map[t.status];
-    toast(`La tarea ${t.id} ahora espera a la ${depTask.id} → ${STATUS[t.status].label}`);
+  if (['todo', 'doing'].includes(t.status)) {
+    t.status = 'wait';
+    toast(`La tarea ${t.id} ahora espera a la ${depTask.id} → ${STATUS.wait.label}`);
   }
 }
 
@@ -745,7 +742,7 @@ async function deleteTask(id) {
   const dependents = blocking(t);
   await Api.deleteTask(id);
   state.tasks = await Api.listTasks();
-  for (const d of dependents) await releaseIfFree(byId(d.id));
+  for (const d of dependents) await releaseIfFree(byId(d.id), true);
   if (state.openId === id) closeTask();
   renderTable();
   toast(`Tarea ${t.id} eliminada`);
@@ -856,7 +853,7 @@ document.addEventListener('click', async (e) => {
     const t = popTask();
     t.depends_on = t.depends_on.filter((x) => x !== Number(prd.dataset.popRmDep));
     await Api.saveTask(t);
-    await releaseIfFree(t);
+    await releaseIfFree(t, true);
     closePopover(); refreshTask(t.id);
     return;
   }
@@ -958,7 +955,7 @@ document.addEventListener('click', async (e) => {
     const t = byId(state.openId);
     t.depends_on = t.depends_on.filter((x) => x !== Number(rm.dataset.removeDep));
     await Api.saveTask(t);
-    await releaseIfFree(t);
+    await releaseIfFree(t, true);
     renderTable(); renderPanel();
     return;
   }
@@ -1380,6 +1377,10 @@ board.addEventListener('drop', async (e) => {
         delete t.project;
         await Api.saveTask(t);
       }
+    }
+    // Migración: los tres estados de dependencia pasan a ser un solo estado "En espera"
+    for (const t of state.tasks) {
+      if (['dep_int', 'dep_ext', 'dep_mix'].includes(t.status)) { t.status = 'wait'; await Api.saveTask(t); }
     }
     // Migración: antes había un solo responsable (assignee); ahora pueden ser varios (assignees)
     for (const t of state.tasks) {
