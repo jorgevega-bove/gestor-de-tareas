@@ -560,3 +560,16 @@ tbody tr.drop-below td:not(.gutter) { box-shadow: inset 0 -2px 0 var(--accent); 
 
 /* Menús: nunca más anchos que la ventana; si no caben en alto, se desplazan por dentro */
 .popover { max-width: min(360px, calc(100vw - 16px)); overflow-y: auto; }
+
+/* ---------- Selección múltiple ---------- */
+tbody tr.selected td:not(.gutter) { background: rgba(35,131,226,.09) !important; }
+tbody tr.selected td.c-title { box-shadow: inset 2px 0 0 var(--accent); }
+.sel-bar { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 45; display: flex; align-items: center; gap: 2px;
+  background: #fff; border-radius: 10px; padding: 5px 6px; box-shadow: 0 0 0 1px rgba(15,15,15,.06), 0 6px 20px rgba(15,15,15,.18); animation: pop .14s ease-out; }
+.sel-bar[hidden] { display: none; }
+.sel-bar .sel-n { font-weight: 600; color: var(--accent); padding: 0 10px 0 6px; white-space: nowrap; }
+.sel-bar button { border: none; background: none; font: inherit; color: var(--text); padding: 5px 10px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.sel-bar button:hover { background: var(--hover); }
+.sel-bar .sel-del { color: #d44c47; }
+.sel-bar .sel-del:hover { background: #fdebec; }
+.sel-bar .sel-x { color: var(--text-3); margin-left: 4px; }

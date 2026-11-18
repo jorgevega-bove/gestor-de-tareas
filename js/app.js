@@ -65,6 +65,7 @@ const state = {
   comments: [],
   attachments: [],
   query: '',
+  selected: new Set(), // IDs de tareas seleccionadas con Ctrl/⌘ + clic
 };
 
 const prefs = (() => {
@@ -288,6 +289,7 @@ function cell(col, t) {
 function renderTable() {
   if (state.projects.length) renderSidebar();
   renderTableView();
+  renderSelectionBar();
   renderBoard();
   const v = prefs.view;
   document.querySelectorAll('.view-tab').forEach((b) => b.classList.toggle('active', b.dataset.view === v));
@@ -334,7 +336,7 @@ function renderTableView() {
   const shown = sortedTasks();
   $('#rows').innerHTML = shown.length ? '' : `<tr class="no-results"><td></td><td colspan="${cols.length}">${state.tasks.some(inView) ? 'Ninguna tarea coincide con la búsqueda o los filtros' : (isAllView() ? 'No hay tareas en los proyectos en curso' : 'Este proyecto todavía no tiene tareas')}</td></tr>`;
   $('#rows').innerHTML += shown.map((t) =>
-    `<tr data-row="${t.id}"><td class="gutter"><span class="row-drag" draggable="true" data-drag-row="${t.id}" title="Arrastra para mover la tarea">⋮⋮</span><button class="row-del" data-del-task="${t.id}" title="Eliminar tarea">${icon('trash')}</button></td>${cols.map((c) => cell(c, t)).join('')}</tr>`).join('');
+    `<tr data-row="${t.id}" class="${state.selected.has(t.id) ? 'selected' : ''}"><td class="gutter"><span class="row-drag" draggable="true" data-drag-row="${t.id}" title="Arrastra para mover la tarea">⋮⋮</span><button class="row-del" data-del-task="${t.id}" title="Eliminar tarea">${icon('trash')}</button></td>${cols.map((c) => cell(c, t)).join('')}</tr>`).join('');
   const total = state.tasks.filter(inView).length;
   $('#count').textContent = isFiltering() ? `${shown.length} de ${total}` : total;
   renderFilterBar();
@@ -578,6 +580,7 @@ function openPopover(anchor, html) {
   const el = pop();
   el.style.maxWidth = '';
   el.style.minWidth = '';
+  delete el.dataset.bulk;
   el.innerHTML = html;
   el.classList.add('open');
   popAnchorRect = anchor.getBoundingClientRect();
@@ -627,7 +630,8 @@ const createRow = (attr, q, names) => {
 };
 
 function renderUserOpts() {
-  const t = popTask();
+  const targets = popTargets();
+  const t = { assignees: USERS.map((u) => u.id).filter((id) => targets.length && targets.every((x) => x.assignees.includes(id))) };
   const q = $('#um-search').value;
   const list = USERS.filter((u) => norm(u.name).includes(norm(q.trim())));
   $('#um-opts').innerHTML = list.map((u) => `
@@ -646,8 +650,47 @@ function openUsersMenu(anchor, taskId = state.openId) {
   $('#um-search').focus();
 }
 
+/* ---------- Selección múltiple (Ctrl/⌘ + clic en las filas) ---------- */
+function toggleSelect(id) {
+  if (state.selected.has(id)) state.selected.delete(id); else state.selected.add(id);
+  renderTable();
+}
+function clearSelection() {
+  if (!state.selected.size) return;
+  state.selected.clear();
+  renderTable();
+}
+function renderSelectionBar() {
+  // Solo cuentan las seleccionadas que siguen visibles
+  const visible = new Set(sortedTasks().map((t) => t.id));
+  for (const id of [...state.selected]) if (!byId(id) || !visible.has(id) || prefs.view !== 'table') state.selected.delete(id);
+  const n = state.selected.size;
+  const bar = $('#sel-bar');
+  bar.hidden = !n;
+  if (!n) return;
+  bar.innerHTML = `<span class="sel-n">${n} seleccionada${n > 1 ? 's' : ''}</span>
+    <button data-bulk="status">Estado</button>
+    <button data-bulk="assignees">Responsable</button>
+    <button data-bulk="priority">Prioridad</button>
+    <button data-bulk="due_at">Fecha límite</button>
+    <button data-bulk="project_id">Proyecto</button>
+    <button data-bulk="delete" class="sel-del">Eliminar</button>
+    <button data-bulk="clear" class="sel-x" title="Quitar selección (Esc)">✕</button>`;
+}
+function openBulk(anchor, field) {
+  const first = [...state.selected][0];
+  if (field === 'assignees') openUsersMenu(anchor, first);
+  else if (field === 'due_at') openCellDate(anchor, first);
+  else openCellSelect(anchor, first, field);
+  pop().dataset.bulk = '1';
+  if (field === 'assignees') renderUserOpts();
+  if (field === 'due_at') renderDatePop();
+}
+
 /* ---------- Edición directa en la tabla ---------- */
 const popTask = () => byId(Number(pop().dataset.task));
+// Tareas sobre las que actúa el menú abierto: una sola, o todas las seleccionadas (selección múltiple)
+const popTargets = () => (pop().dataset.bulk ? [...state.selected].map(byId).filter(Boolean) : [popTask()].filter(Boolean));
 function refreshTask(id) {
   renderTable();
   if (state.openId === id) renderPanel();
@@ -684,7 +727,9 @@ function openCellDate(anchor, taskId) {
 }
 
 function renderDatePop() {
-  const t = popTask();
+  const targets = popTargets();
+  const same = targets.every((x) => x.due_at === targets[0].due_at);
+  const t = { due_at: same && targets[0] ? targets[0].due_at : null };
   const date = t.due_at ? t.due_at.split('T')[0] : '';
   const time = hasTime(t.due_at) ? t.due_at.split('T')[1] : '';
   const row = (ico, kind, value, enabled, label) => `
@@ -713,12 +758,12 @@ function startDateInput(kind) {
 }
 
 async function saveCellDate() {
-  const t = popTask();
+  const targets = popTargets();
+  const t = targets[0];
   const d = $('#pd-date') ? $('#pd-date').value : '';
   const tm = $('#pd-time') ? $('#pd-time').value : (hasTime(t.due_at) ? t.due_at.split('T')[1] : '');
   const before = [!!t.due_at, hasTime(t.due_at)];
-  t.due_at = d ? d + (tm ? `T${tm}` : '') : null;
-  await Api.saveTask(t);
+  for (const x of targets) { x.due_at = d ? d + (tm ? `T${tm}` : '') : null; await Api.saveTask(x); }
   refreshTask(t.id);
   // Solo se redibuja si cambia qué filas tienen valor (así no se interrumpe la escritura)
   if (before[0] !== !!t.due_at || before[1] !== hasTime(t.due_at)) renderDatePop();
@@ -798,13 +843,14 @@ async function createNewTask(status = 'todo') {
   $('#f-title').focus();
 }
 
-async function deleteTask(id) {
+async function deleteTask(id, quiet = false) {
   const t = byId(id);
   const dependents = blocking(t);
   await Api.deleteTask(id);
   state.tasks = await Api.listTasks();
   for (const d of dependents) await releaseIfFree(byId(d.id), true);
   if (state.openId === id) closeTask();
+  if (quiet) return;
   renderTable();
   toast(`Tarea ${t.id} eliminada`);
 }
@@ -935,6 +981,7 @@ function openShortcuts() {
   const rows = [
     [k('N'), 'Crear una tarea en el proyecto actual'],
     [k('X'), 'Alternar entre Tabla y Kanban'],
+    [`${k(IS_MAC ? '⌘' : 'Ctrl')} + clic`, 'Selección múltiple: elige varias filas para cambiar un campo a todas a la vez'],
   ];
   openDialog('Atajos de teclado', `<table class="kbd-table">${rows.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>`);
 }
@@ -1140,25 +1187,28 @@ document.addEventListener('click', async (e) => {
   // Popover: clics dentro
   const sv = target.closest('[data-set-val]');
   if (sv) {
-    const t = popTask();
+    const targets = popTargets();
     const field = pop().dataset.field;
     const v = sv.dataset.setVal;
     closePopover();
-    if (field === 'status') await setStatus(t, v);
-    else if (field === 'project_id') {
-      t.project_id = Number(v); await Api.saveTask(t);
-      if (!inView(t)) toast(`Tarea movida a ${projectName(t.project_id)}`);
-    } else { t[field] = v || null; await Api.saveTask(t); }
-    refreshTask(t.id);
+    for (const t of targets) {
+      if (field === 'status') await setStatus(t, v);
+      else if (field === 'project_id') { t.project_id = Number(v); await Api.saveTask(t); }
+      else { t[field] = v || null; await Api.saveTask(t); }
+    }
+    if (field === 'project_id' && targets.some((t) => !inView(t))) toast(`${targets.length > 1 ? `${targets.length} tareas movidas` : 'Tarea movida'} a ${projectName(Number(v))}`);
+    refreshTask(targets[0] && targets[0].id);
     return;
   }
   const pdc = target.closest('[data-pd-clear]');
   if (pdc) {
-    const t = popTask();
+    const targets = popTargets();
     // Sin fecha no puede haber hora: quitar la fecha borra ambas
-    t.due_at = pdc.dataset.pdClear === 'date' ? null : t.due_at.split('T')[0];
-    await Api.saveTask(t);
-    refreshTask(t.id);
+    for (const t of targets) {
+      t.due_at = pdc.dataset.pdClear === 'date' || !t.due_at ? null : t.due_at.split('T')[0];
+      await Api.saveTask(t);
+    }
+    refreshTask(targets[0] && targets[0].id);
     renderDatePop();
     return;
   }
@@ -1192,13 +1242,15 @@ document.addEventListener('click', async (e) => {
   }
   const cu = target.closest('[data-create-user]');
   if (cu) {
-    const t = popTask();
+    const targets = popTargets();
     const person = await Api.createPerson(cu.dataset.createUser);
     USERS = await Api.listPeople();
-    t.assignees = USERS.map((u) => u.id).filter((x) => [...t.assignees, person.id].includes(x));
-    await Api.saveTask(t);
+    for (const t of targets) {
+      t.assignees = USERS.map((u) => u.id).filter((x) => [...t.assignees, person.id].includes(x));
+      await Api.saveTask(t);
+    }
     $('#um-search').value = '';
-    refreshTask(t.id);
+    refreshTask(targets[0] && targets[0].id);
     renderUserOpts();
     $('#um-search').focus();
     toast(`${person.name} agregado como responsable`);
@@ -1206,24 +1258,27 @@ document.addEventListener('click', async (e) => {
   }
   const cp = target.closest('[data-create-project]');
   if (cp) {
-    const t = popTask();
+    const targets = popTargets();
     const p = await Api.createProject(cp.dataset.createProject);
     state.projects = await Api.listProjects();
-    t.project_id = p.id;
-    await Api.saveTask(t);
+    for (const t of targets) { t.project_id = p.id; await Api.saveTask(t); }
     closePopover();
-    refreshTask(t.id);
-    toast(`Proyecto ${p.name} creado · tarea movida ahí`);
+    refreshTask(targets[0] && targets[0].id);
+    toast(`Proyecto ${p.name} creado · ${targets.length > 1 ? `${targets.length} tareas movidas` : 'tarea movida'} ahí`);
     return;
   }
   const userOpt = target.closest('[data-toggle-user]');
   if (userOpt) {
-    const t = popTask();
+    const targets = popTargets();
     const id = userOpt.dataset.toggleUser;
-    const list = t.assignees.includes(id) ? t.assignees.filter((x) => x !== id) : [...t.assignees, id];
-    t.assignees = USERS.map((u) => u.id).filter((x) => list.includes(x));
-    await Api.saveTask(t);
-    refreshTask(t.id);
+    // Si todas la tienen, se quita de todas; si no, se agrega a todas
+    const allHave = targets.every((t) => t.assignees.includes(id));
+    for (const t of targets) {
+      const list = allHave ? t.assignees.filter((x) => x !== id) : [...new Set([...t.assignees, id])];
+      t.assignees = USERS.map((u) => u.id).filter((x) => list.includes(x));
+      await Api.saveTask(t);
+    }
+    refreshTask(targets[0] && targets[0].id);
     renderUserOpts();
     return;
   }
@@ -1357,6 +1412,32 @@ document.addEventListener('click', async (e) => {
       return;
     }
     await deleteTask(Number(rowDel.dataset.delTask));
+    return;
+  }
+
+  // Selección múltiple: Ctrl + clic (⌘ + clic en Mac) en cualquier parte de la fila
+  const selRow = target.closest('tr[data-row]');
+  if (selRow && (IS_MAC ? e.metaKey : e.ctrlKey) && !target.closest('.row-del, .row-drag')) {
+    e.preventDefault();
+    closePopover();
+    toggleSelect(Number(selRow.dataset.row));
+    return;
+  }
+  const bk = target.closest('[data-bulk]');
+  if (bk) {
+    const f = bk.dataset.bulk;
+    if (f === 'clear') { clearSelection(); return; }
+    if (f === 'delete') {
+      const ids = [...state.selected];
+      showConfirm({
+        title: `¿Eliminar ${ids.length} tarea${ids.length > 1 ? 's' : ''}?`,
+        body: 'Se eliminarán con sus comentarios y archivos adjuntos. Puedes deshacerlo con Ctrl/⌘ + Z.',
+        ok: 'Eliminar',
+        onOk: async () => { for (const id of ids) await deleteTask(id, true); state.selected.clear(); renderTable(); toast(`${ids.length} tareas eliminadas`); },
+      });
+      return;
+    }
+    openBulk(bk, f);
     return;
   }
 
@@ -1519,6 +1600,7 @@ document.addEventListener('keydown', async (e) => {
     if ($('#lightbox').classList.contains('open')) return $('#lightbox').classList.remove('open');
     if (pop().classList.contains('open')) return closePopover();
     if (state.openId) return closeTask();
+    if (state.selected.size) return clearSelection();
   }
   if (e.target.id === 'new-project-input' && (e.key === 'Enter' || e.key === 'Escape')) {
     const val = e.key === 'Enter' ? e.target.value : '';
