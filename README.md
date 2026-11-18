@@ -14,7 +14,7 @@ Desde Cuenta › Configuración se puede descargar un respaldo y restaurarlo.
 - Edición directa en las celdas de la tabla; el panel de la tarea se abre solo con el botón ABRIR.
 - Columnas con ancho ajustable arrastrando el borde del encabezado (doble clic para volver al ancho por defecto).
 - Título del proyecto editable con un clic; proyectos reordenables arrastrándolos en la barra lateral.
-- Proyectos en la barra lateral (en curso y archivados), opción "+ Crear proyecto" y "Mostrar todos" para ver las tareas de todos los proyectos en curso.
+- Proyectos en la barra lateral (en curso y archivados), botón "+" para crear proyectos en curso o archivados y "Mostrar todos" para ver las tareas de todos los proyectos en curso.
 - Vista de **tabla**: clic en un encabezado para Ordenar o Filtrar (con casillas en Estado, Prioridad, Responsable, Proyecto y Creado por); con columnas que se reordenan arrastrando y se ocultan (botón "Propiedades").
 - Vista **Kanban** agrupable por Estado, Responsable o Prioridad (botón Propiedades); las tarjetas se arrastran entre columnas.
 - Búsqueda por título, texto, ID, proyecto o responsable (Cmd+F).

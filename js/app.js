@@ -1220,14 +1220,14 @@ async function finishRenameProject(save) {
   if (state.openId) renderPanel();
 }
 
-async function createProject(name) {
+async function createProject(name, archived = false) {
   name = name.trim();
   if (!name) return;
   if (state.projects.some((p) => norm(p.name) === norm(name))) { toast(`Ya existe un proyecto llamado ${name}`); return; }
-  const p = await Api.createProject(name);
+  const p = await Api.createProject(name, archived);
   state.projects = await Api.listProjects();
   selectProject(p.id);
-  toast(`Proyecto ${name} creado`);
+  toast(`Proyecto ${name} creado${archived ? ' en archivados' : ''}`);
 }
 
 /* ============================================================
@@ -1599,10 +1599,16 @@ document.addEventListener('click', async (e) => {
   if (target.closest('[data-show-all]')) { selectProject('all'); return; }
   const pj = target.closest('[data-project]');
   if (pj) { selectProject(Number(pj.dataset.project)); return; }
-  if (target.closest('#new-project')) {
-    $('#new-project').hidden = true;
-    $('#new-project-input').hidden = false;
-    $('#new-project-input').focus();
+  // "+" junto a la sección: abre la sección y muestra el campo para escribir el nombre
+  const ap = target.closest('[data-add-project]');
+  if (ap) {
+    const sec = ap.dataset.addProject;
+    prefs.openSection = sec;
+    savePrefs();
+    renderSidebar();
+    const inp = $(`[data-new-project="${sec}"]`);
+    inp.hidden = false;
+    inp.focus();
     return;
   }
 
@@ -1664,7 +1670,7 @@ document.addEventListener('input', (e) => {
 document.addEventListener('keydown', async (e) => {
   if (e.key === 'Escape' && $('#confirm').classList.contains('open')) { closeConfirm(); return; }
   if (e.key === 'Escape' && $('#dialog').classList.contains('open')) { closeDialog(); return; }
-  if (e.key === 'Escape' && (e.target.id === 'new-project-input' || e.target.id === 'page-title')) { /* lo maneja abajo */ }
+  if (e.key === 'Escape' && (e.target.matches('[data-new-project]') || e.target.id === 'page-title')) { /* lo maneja abajo */ }
   else if (e.key === 'Escape') {
     if (e.target.id === 'search') return clearSearch();
     if ($('#lightbox').classList.contains('open')) return $('#lightbox').classList.remove('open');
@@ -1672,10 +1678,11 @@ document.addEventListener('keydown', async (e) => {
     if (state.openId) return closeTask();
     if (state.selected.size) return clearSelection();
   }
-  if (e.target.id === 'new-project-input' && (e.key === 'Enter' || e.key === 'Escape')) {
+  if (e.target.matches('[data-new-project]') && (e.key === 'Enter' || e.key === 'Escape')) {
     const val = e.key === 'Enter' ? e.target.value : '';
-    e.target.value = ''; e.target.hidden = true; $('#new-project').hidden = false;
-    await createProject(val);
+    const archived = e.target.dataset.newProject === 'archived';
+    e.target.value = ''; e.target.hidden = true;
+    await createProject(val, archived);
     return;
   }
   if (e.target.id === 'page-title' && (e.key === 'Enter' || e.key === 'Escape')) {
@@ -1801,6 +1808,11 @@ async function afterHistoryChange() {
   renderAccount();
   renderTable();
 }
+
+// Si se sale del campo de nuevo proyecto sin escribir, se esconde
+document.addEventListener('focusout', (e) => {
+  if (e.target.matches && e.target.matches('[data-new-project]') && !e.target.value.trim()) e.target.hidden = true;
+});
 
 // Al salir del título del proyecto, se guarda el nombre
 $('#page-title').addEventListener('blur', () => finishRenameProject(true));

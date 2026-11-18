@@ -254,10 +254,10 @@ const Api = {
       await LocalDB.put('projects', p);
     }
   },
-  async createProject(name) {
+  async createProject(name, archived = false) {
     await History.before();
     const position = (await LocalDB.all('projects')).reduce((m, p) => Math.max(m, p.position ?? p.id), 0) + 1;
-    const id = await LocalDB.put('projects', { name, position, created_at: nowISO() });
+    const id = await LocalDB.put('projects', { name, position, archived, created_at: nowISO() });
     await logActivity({ entity: 'project', entity_id: id, entity_name: name, action: 'create' });
     return { id, name };
   },

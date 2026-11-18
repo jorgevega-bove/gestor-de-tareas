@@ -583,3 +583,12 @@ tbody tr.selected td.c-title { box-shadow: inset 2px 0 0 var(--accent); }
 .card.st-wait  { background: #fdecc8; } .card.st-wait:hover  { background: #fbe4b6; }
 .card.st-done  { background: #dbeddb; } .card.st-done:hover  { background: #d0e6d0; }
 .card[class*="st-"] .card-meta { color: rgba(55,53,47,.75); }
+
+/* ---------- "+" para crear proyecto junto a cada sección ---------- */
+.sec-row { display: flex; align-items: center; margin-top: 8px; }
+.sec-row .sec-h { margin-top: 0; flex: 1; }
+.sec-add { width: 22px; height: 22px; border: none; background: none; border-radius: 4px; color: var(--text-3); cursor: pointer; font-size: 16px; line-height: 1; flex-shrink: 0; }
+
+.sec-add:hover { background: var(--hover); color: var(--text); }
+.sec-body .new-project-input { display: block; width: calc(100% - 8px); margin: 2px 4px 4px; }
+.sec-body .new-project-input[hidden] { display: none; }
