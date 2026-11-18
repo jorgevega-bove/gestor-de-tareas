@@ -2,11 +2,8 @@
  *  Gestor de tareas — lógica de la interfaz
  * ============================================================ */
 
-const USERS = [
-  { id: 'jorge', name: 'Jorge', color: '#2383e2' },
-  { id: 'francisco', name: 'Francisco', color: '#448361' },
-  { id: 'ulises', name: 'Ulises', color: '#9065b0' },
-];
+// Personas (se cargan desde la base de datos al iniciar)
+let USERS = [];
 
 const STATUS = {
   todo:    { label: 'No completada',       cls: 'c-red',    order: 0 },
@@ -452,8 +449,7 @@ function renderPanel() {
             '<button class="mini" id="clear-due" title="Quitar fecha">Quitar fecha</button>'
           : ''), true)}
       ${prop('select', 'Prioridad', pickSelect('priority', PRIORITY, t.priority, true), true)}
-      ${prop('select', 'Proyecto', `<span class="pick">${projectTag(t.project_id) || EMPTY}<select data-field="project_id">${state.projects.map((p) =>
-        `<option value="${p.id}" ${p.id === t.project_id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></span>`, true)}
+      ${prop('select', 'Proyecto', `<button class="pick-btn" id="pick-project">${projectTag(t.project_id) || EMPTY}</button>`, true)}
       ${prop('person', 'Responsable', pickUsers(t.assignees), true)}
       ${prop('clock', 'Fecha de creación', `<span class="ro">${fmt(t.created_at)}</span>`)}
       ${prop('status', 'Estado', pickSelect('status', STATUS, t.status, false), true)}
@@ -583,14 +579,31 @@ function openDepPicker(anchor, taskId = state.openId) {
   s.oninput = () => { $('#dep-opts').innerHTML = list(s.value); };
 }
 
-const usersMenuHtml = (t) => `<div class="title">Responsables</div>` + USERS.map((u) => `
-    <div class="opt" data-toggle-user="${u.id}"><span class="cb ${t.assignees.includes(u.id) ? 'on' : ''}"></span><span class="tag c-gray person">${esc(u.name)}</span></div>`).join('');
+// Fila "Crear «texto»" cuando lo escrito no coincide exactamente con una opción
+const createRow = (attr, q, names) => {
+  const name = q.trim();
+  if (!name || names.some((n) => norm(n) === norm(name))) return '';
+  return `<div class="opt create-opt" data-${attr}="${esc(name)}">Crear <span class="tag c-gray">${esc(name)}</span></div>`;
+};
+
+function renderUserOpts() {
+  const t = popTask();
+  const q = $('#um-search').value;
+  const list = USERS.filter((u) => norm(u.name).includes(norm(q.trim())));
+  $('#um-opts').innerHTML = list.map((u) => `
+    <div class="opt" data-toggle-user="${u.id}"><span class="cb ${t.assignees.includes(u.id) ? 'on' : ''}"></span><span class="tag c-gray person">${esc(u.name)}</span></div>`).join('') +
+    createRow('create-user', q, USERS.map((u) => u.name)) ||
+    '<div class="title">Escribe un nombre para crear una persona</div>';
+}
 function openUsersMenu(anchor, taskId = state.openId) {
-  const t = byId(taskId);
-  openPopover(anchor, usersMenuHtml(t));
-  pop().dataset.kind = 'users';
-  pop().dataset.task = t.id;
-  pop().style.minWidth = '220px';
+  openPopover(anchor, `<div class="title">Responsables</div>
+    <input class="search" id="um-search" placeholder="Busca o crea una persona…" autocomplete="off">
+    <div class="opts" id="um-opts"></div>`);
+  Object.assign(pop().dataset, { kind: 'users', task: taskId });
+  pop().style.minWidth = '240px';
+  renderUserOpts();
+  $('#um-search').oninput = renderUserOpts;
+  $('#um-search').focus();
 }
 
 /* ---------- Edición directa en la tabla ---------- */
@@ -607,10 +620,19 @@ function openCellSelect(anchor, taskId, field) {
   if (field === 'priority') opts = [...Object.keys(PRIORITY).map((k) => [k, pill(PRIORITY, k)]), ['', EMPTY]];
   if (field === 'project_id') opts = state.projects.map((p) => [String(p.id), projectTag(p.id)]);
   const cur = String(t[field] ?? '');
-  openPopover(anchor, `<div class="opts">${opts.map(([v, h]) => `
-    <div class="opt" data-set-val="${esc(v)}">${h}<span class="chk">${v === cur ? '✓' : ''}</span></div>`).join('')}</div>`);
+  const optsHtml = (q = '') => opts
+    .filter(([v]) => field !== 'project_id' || norm(projectName(v)).includes(norm(q.trim())))
+    .map(([v, h]) => `<div class="opt" data-set-val="${esc(v)}">${h}<span class="chk">${v === cur ? '✓' : ''}</span></div>`).join('') +
+    (field === 'project_id' ? createRow('create-project', q, state.projects.map((p) => p.name)) : '');
+  openPopover(anchor, (field === 'project_id'
+    ? '<input class="search" id="cs-search" placeholder="Busca o crea un proyecto…" autocomplete="off">' : '') +
+    `<div class="opts" id="cs-opts">${optsHtml()}</div>`);
   Object.assign(pop().dataset, { kind: 'cellselect', task: taskId, field });
-  pop().style.minWidth = '220px';
+  pop().style.minWidth = '240px';
+  if (field === 'project_id') {
+    $('#cs-search').oninput = () => { $('#cs-opts').innerHTML = optsHtml($('#cs-search').value); };
+    $('#cs-search').focus();
+  }
 }
 
 function openCellDate(anchor, taskId) {
@@ -825,6 +847,33 @@ document.addEventListener('click', async (e) => {
     refreshTask(t.id);
     return;
   }
+  const cu = target.closest('[data-create-user]');
+  if (cu) {
+    const t = popTask();
+    const person = await Api.createPerson(cu.dataset.createUser);
+    USERS = await Api.listPeople();
+    t.assignees = USERS.map((u) => u.id).filter((x) => [...t.assignees, person.id].includes(x));
+    await Api.saveTask(t);
+    $('#um-search').value = '';
+    renderUsers();
+    refreshTask(t.id);
+    renderUserOpts();
+    $('#um-search').focus();
+    toast(`${person.name} agregado como responsable`);
+    return;
+  }
+  const cp = target.closest('[data-create-project]');
+  if (cp) {
+    const t = popTask();
+    const p = await Api.createProject(cp.dataset.createProject);
+    state.projects = await Api.listProjects();
+    t.project_id = p.id;
+    await Api.saveTask(t);
+    closePopover();
+    refreshTask(t.id);
+    toast(`Proyecto ${p.name} creado · tarea movida ahí`);
+    return;
+  }
   const userOpt = target.closest('[data-toggle-user]');
   if (userOpt) {
     const t = popTask();
@@ -833,7 +882,7 @@ document.addEventListener('click', async (e) => {
     t.assignees = USERS.map((u) => u.id).filter((x) => list.includes(x));
     await Api.saveTask(t);
     refreshTask(t.id);
-    pop().innerHTML = usersMenuHtml(t);
+    renderUserOpts();
     return;
   }
   const colOpt = target.closest('[data-toggle-col]');
@@ -866,7 +915,7 @@ document.addEventListener('click', async (e) => {
   }
   if (target.closest('[data-hm-unsort]')) { closePopover(); prefs.sort = { key: null, dir: null }; savePrefs(); renderTable(); return; }
   if (pop().contains(target)) return;
-  if (pop().classList.contains('open') && !target.closest('#add-dep, #cols-tool, #add-user')) { closePopover(); }
+  if (pop().classList.contains('open') && !target.closest('#add-dep, #cols-tool, #add-user, #pick-project')) { closePopover(); }
 
   // Borrar adjunto (antes que el enlace de descarga)
   const delAtt = target.closest('[data-del-att]');
@@ -899,6 +948,7 @@ document.addEventListener('click', async (e) => {
   }
   if (target.closest('#clear-due')) { state.addingTime = false; await updateTask({ due_at: null }); return; }
   if (target.closest('#add-user')) { openUsersMenu(target.closest('#add-user')); return; }
+  if (target.closest('#pick-project')) { openCellSelect(target.closest('#pick-project'), state.openId, 'project_id'); return; }
   const rmUser = target.closest('[data-remove-user]');
   if (rmUser) {
     const t = byId(state.openId);
@@ -1008,6 +1058,8 @@ document.addEventListener('click', async (e) => {
       return;
     }
     await Api.resetAll(SEED);
+    USERS = await Api.listPeople();
+    renderUsers();
     state.tasks = await Api.listTasks();
     state.projects = await Api.listProjects();
     prefs.project = state.projects[0].id; savePrefs();
@@ -1085,6 +1137,12 @@ document.addEventListener('keydown', async (e) => {
     e.preventDefault();
     await finishRenameProject(e.key === 'Enter');
     e.target.blur();
+    return;
+  }
+  if ((e.target.id === 'um-search' || e.target.id === 'cs-search') && e.key === 'Enter') {
+    e.preventDefault();
+    const first = pop().querySelector('.opts .opt');
+    if (first) first.click();
     return;
   }
   if (e.target.id === 'f-title' && e.key === 'Enter') { e.preventDefault(); $('#f-desc').focus(); }
@@ -1277,6 +1335,7 @@ board.addEventListener('drop', async (e) => {
 (async () => {
   try {
     await Api.ensureSeed(SEED);
+    USERS = await Api.listPeople();
     state.projects = await Api.listProjects();
     state.tasks = await Api.listTasks();
     // Migración: antes el proyecto era un texto libre; ahora cada tarea pertenece a un proyecto de la lista

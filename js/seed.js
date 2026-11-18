@@ -1,5 +1,10 @@
 /* Datos de ejemplo que se cargan la primera vez que se abre la app. */
 const SEED = {
+  people: [
+    { id: 'jorge', name: 'Jorge', created_at: '2026-11-01T09:00' },
+    { id: 'francisco', name: 'Francisco', created_at: '2026-11-01T09:01' },
+    { id: 'ulises', name: 'Ulises', created_at: '2026-11-01T09:02' },
+  ],
   projects: [
     { id: 1, name: 'Bus Light', position: 1, created_at: '2026-11-01T09:00' },
     { id: 2, name: 'Bove', position: 2, created_at: '2026-11-01T09:00' },

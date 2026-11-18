@@ -384,3 +384,7 @@ h1#page-title[contenteditable="plaintext-only"] { background: transparent; box-s
 .side-item.proj.drop-below { box-shadow: inset 0 -2px 0 var(--accent); }
 .search-box.open #search-tool .lbl { display: none; }
 svg.view-ico { fill: none; width: 16px; height: 16px; }
+
+/* ---------- Opciones que se pueden crear (estilo Notion) ---------- */
+.popover .create-opt { color: var(--text-2); gap: 6px; }
+.pick-btn { border: none; background: none; padding: 0; cursor: pointer; font: inherit; display: inline-flex; align-items: center; }

@@ -6,6 +6,7 @@
  * las mismas funciones contra Supabase, y el resto de la app no cambia.
  *
  * Modelo de datos (pensado para que calce con tablas de Supabase):
+ *   people      { id, name, created_at }   (personas que pueden ser responsables)
  *   projects    { id, name, position, created_at }
  *   tasks       { id, project_id, title, description, status, priority, project, assignees: [ids],
  *                 created_by, created_at, due_at, depends_on: [ids] }
@@ -16,7 +17,7 @@
 
 const LocalDB = (() => {
   const NAME = 'gestor-de-tareas';
-  const VERSION = 2;
+  const VERSION = 3;
   let dbPromise;
 
   function open() {
@@ -35,6 +36,9 @@ const LocalDB = (() => {
           }
           if (e.oldVersion < 2) {
             db.createObjectStore('projects', { keyPath: 'id', autoIncrement: true });
+          }
+          if (e.oldVersion < 3) {
+            db.createObjectStore('people', { keyPath: 'id' });
           }
         };
         // Otra pestaña con una versión anterior de la app tiene la base abierta y bloquea la actualización
@@ -88,6 +92,9 @@ const nowISO = () => {
 
 const Api = {
   async ensureSeed(seed) {
+    if (!(await LocalDB.all('people')).length) {
+      for (const u of seed.people) await LocalDB.put('people', u);
+    }
     if (!(await LocalDB.all('projects')).length) {
       for (const p of seed.projects) await LocalDB.put('projects', p);
     }
@@ -100,7 +107,7 @@ const Api = {
   },
 
   async resetAll(seed) {
-    for (const s of ['projects', 'tasks', 'comments', 'attachments', 'meta']) await LocalDB.clear(s);
+    for (const s of ['people', 'projects', 'tasks', 'comments', 'attachments', 'meta']) await LocalDB.clear(s);
     await this.ensureSeed(seed);
   },
 
@@ -119,6 +126,20 @@ const Api = {
     const position = (await LocalDB.all('projects')).reduce((m, p) => Math.max(m, p.position ?? p.id), 0) + 1;
     const id = await LocalDB.put('projects', { name, position, created_at: nowISO() });
     return { id, name };
+  },
+
+  async listPeople() {
+    const list = await LocalDB.all('people');
+    return list.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || '') || a.name.localeCompare(b.name, 'es'));
+  },
+  async createPerson(name) {
+    const base = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'persona';
+    const existing = new Set((await LocalDB.all('people')).map((u) => u.id));
+    let id = base, n = 2;
+    while (existing.has(id)) id = `${base}-${n++}`;
+    const person = { id, name, created_at: nowISO() };
+    await LocalDB.put('people', person);
+    return person;
   },
 
   async renameProject(id, name) {
