@@ -241,3 +241,31 @@ revoke execute on function public.es_usuario_permitido() from public, anon;
 revoke execute on function public.sincronizar_secuencias() from public, anon;
 grant execute on function public.es_usuario_permitido() to authenticated;
 grant execute on function public.sincronizar_secuencias() to authenticated;
+
+-- ---------------------------------------------------------------------
+-- 7. Solo se pueden crear cuentas con correo del dominio (hook de Auth)
+--    Después de ejecutar esto, actívalo en Authentication › Auth Hooks ›
+--    "Before User Created" › Postgres function › public.solo_correos_bove
+-- ---------------------------------------------------------------------
+create or replace function public.solo_correos_bove(event jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  correo  text := lower(coalesce(event->'user'->>'email', ''));
+  dominio text;
+begin
+  select lower(value) into dominio from public.app_config where key = 'dominio_correo';
+  if coalesce(dominio, '') <> '' and correo not like '%@' || dominio then
+    return jsonb_build_object('error', jsonb_build_object(
+      'http_code', 403,
+      'message', 'Solo pueden entrar correos @' || dominio));
+  end if;
+  return '{}'::jsonb;
+end;
+$$;
+
+revoke execute on function public.solo_correos_bove(jsonb) from public, anon, authenticated;
+grant execute on function public.solo_correos_bove(jsonb) to supabase_auth_admin;

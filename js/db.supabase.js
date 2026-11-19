@@ -266,6 +266,16 @@
         const { data } = await sb.auth.getSession();
         return data.session ? (data.session.user.email || '').toLowerCase() : null;
       },
+      // Entrar con la cuenta de Google de la empresa. "hd" hace que Google muestre solo cuentas del dominio;
+      // la base además rechaza cualquier correo que no sea del dominio (hook "Before User Created" y RLS).
+      async signInWithGoogle() {
+        const back = location.origin + location.pathname;
+        const dom = (cfg.allowedEmailDomain || '').replace(/^@/, '');
+        ok(await sb.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: back, queryParams: { prompt: 'select_account', ...(dom ? { hd: dom } : {}) } },
+        }));
+      },
       // Envía un correo para entrar: trae un enlace (y un código si la plantilla lo incluye)
       async sendCode(email) {
         const back = location.origin + location.pathname;

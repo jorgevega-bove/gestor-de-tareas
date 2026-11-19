@@ -2313,38 +2313,20 @@ function loginCard(html) {
   $('#logged-out').innerHTML = `<div class="lo-card"><img class="lo-logo-img" src="assets/bove-white.svg" alt="BOVE">${html}</div>`;
   $('#logged-out').hidden = false;
 }
-// Pide el correo, envía un código y lo verifica. Termina cuando hay sesión iniciada.
+// Pantalla de entrada: botón "Continuar con Google". Termina cuando hay sesión iniciada.
+const GOOGLE_ICON = '<svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.97 10.72A5.4 5.4 0 0 1 3.68 9c0-.6.1-1.18.29-1.72V4.95H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.05l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>';
 function showLogin(msg = '') {
   return new Promise((resolve) => {
     const dom = Api.auth.allowedDomain;
     const step1 = () => {
       loginCard(`<h2>Entrar a BOVE</h2>
-        <p>${msg ? esc(msg) : `Ingresa tu correo${dom ? ` de @${esc(dom)}` : ''} y te enviaremos un enlace para entrar.`}</p>
-        <form class="lo-form" id="lo-form1"><input type="email" id="lo-email" placeholder="nombre@${esc(dom || 'empresa.cl')}" required autocomplete="email">
-        <button class="btn-new" type="submit">Enviar enlace</button></form>`);
-      $('#lo-email').focus();
-      $('#lo-form1').onsubmit = async (ev) => {
-        ev.preventDefault();
-        const email = $('#lo-email').value.trim().toLowerCase();
-        if (dom && !email.endsWith('@' + dom)) { toast(`Usa tu correo de @${dom}`); return; }
-        try { await Api.auth.sendCode(email); step2(email); } catch (err) { toast(`No se pudo enviar el correo: ${err.message}`); }
+        <p>${msg ? esc(msg) : `Entra con tu cuenta de Google${dom ? ` de @${esc(dom)}` : ''}.`}</p>
+        <button class="lo-google" id="lo-google" type="button">${GOOGLE_ICON}Continuar con Google</button>`);
+      $('#lo-google').onclick = async () => {
+        try { await Api.auth.signInWithGoogle(); } catch (err) { toast(`No se pudo abrir Google: ${err.message}`); }
       };
     };
-    const step2 = (email) => {
-      loginCard(`<h2>Revisa tu correo</h2>
-        <p>Enviamos un correo a <b>${esc(email)}</b>. Abre el enlace que trae para entrar. Si el correo trae un código, también puedes escribirlo aquí:</p>
-        <form class="lo-form" id="lo-form2"><input id="lo-code" inputmode="numeric" autocomplete="one-time-code" placeholder="Código" required>
-        <button class="btn-new" type="submit">Entrar</button></form>
-        <p><a href="#" id="lo-back" class="lo-link">Usar otro correo</a></p>`);
-      $('#lo-code').focus();
-      $('#lo-back').onclick = (ev) => { ev.preventDefault(); step1(); };
-      $('#lo-form2').onsubmit = async (ev) => {
-        ev.preventDefault();
-        try { await Api.auth.verifyCode(email, $('#lo-code').value.trim()); $('#logged-out').hidden = true; resolve(); }
-        catch (err) { toast(`Código incorrecto o vencido: ${err.message}`); }
-      };
-    };
-    // Si se entra con el enlace del correo (en esta u otra pestaña), se continúa solo
+    // Si la sesión se inicia en otra pestaña, se continúa solo
     const stop = Api.auth.onSignIn ? Api.auth.onSignIn(() => { stop && stop(); $('#logged-out').hidden = true; resolve(); }) : null;
     step1();
   });
@@ -2378,7 +2360,15 @@ async function sharedSignIn() {
   let email = await Api.auth.email();
   const dom = Api.auth.allowedDomain;
   if (email && dom && !email.endsWith('@' + dom)) { await Api.auth.signOut(); email = null; }
-  if (!email) { await showLogin(); email = await Api.auth.email(); }
+  // Si Google o la base rechazaron la entrada (por ejemplo, un correo que no es de la empresa), se muestra el motivo
+  const params = new URLSearchParams(location.search + '&' + location.hash.slice(1));
+  const authError = params.get('error_description');
+  if (authError || params.get('error')) history.replaceState(null, '', location.pathname);
+  if (email && dom && !email.endsWith('@' + dom)) email = null;
+  if (!email) {
+    await showLogin(authError ? `No se pudo entrar: ${authError.replace(/\+/g, ' ')}. Usa tu cuenta de Google de @${dom || 'la empresa'}.` : '');
+    email = await Api.auth.email();
+  }
   await loadPeople();
   const person = await Api.personForEmail(email);
   CURRENT_USER = person && !person.deleted ? person.id : await linkAccount(email);
