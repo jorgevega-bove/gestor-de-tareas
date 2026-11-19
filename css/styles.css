@@ -28,6 +28,7 @@
   --blue: #12968D;    --blue-tag: #1A7A78; --blue-ink: #F2F2F0; --blue-card: #166664; --blue-card-h: #156F6C; --blue-lane: #0F2F3B; --blue-edge: #147D77;
   --yellow: #B98410;  --yellow-tag: #8F6E20; --yellow-ink: #F2F2F0; --yellow-card: #775B1B; --yellow-card-h: #846319; --yellow-lane: #232D2C; --yellow-edge: #966F16;
   --green: #1E9E5A;   --green-tag: #228054; --green-ink: #F2F2F0; --green-card: #1D6A46; --green-card-h: #1D744A; --green-lane: #113035; --green-edge: #1E8350;
+  --orange: #D9692A; --orange-tag: #A55B33; --orange-ink: #F2F2F0; --orange-card: #8A4C2A; --orange-card-h: #99512A; --orange-edge: #AF5A2A;
   --gray-tag: #22405A; --gray-ink: #DCE2E7;
   --scrim: rgba(3, 9, 13, .72);
   --shadow-overlay: 0 0 0 1px #22405A, 0 8px 16px rgba(0,0,0,.35), 0 24px 48px rgba(0,0,0,.4);
@@ -161,7 +162,8 @@ td.c-code, td.muted { color: var(--text-2); font-size: 13px; }
 .c-green  { background: var(--green-tag);  color: var(--green-ink); }  .c-green .dot  { background: var(--green); }
 .c-red    { background: var(--red-tag);    color: var(--red-ink); }    .c-red .dot    { background: var(--red); }
 .c-blue   { background: var(--blue-tag);   color: var(--blue-ink); }   .c-blue .dot   { background: var(--blue); }
-.c-orange, .c-purple, .c-pink { background: var(--gray-tag); color: var(--gray-ink); }
+.c-orange { background: var(--orange-tag); color: var(--orange-ink); } .c-orange .dot { background: var(--orange); }
+.c-purple, .c-pink { background: var(--gray-tag); color: var(--gray-ink); }
 
 /* ---------- Toast ---------- */
 .toasts { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 50; display: flex; flex-direction: column; gap: 8px; align-items: center; }
@@ -786,3 +788,6 @@ h1#page-title[contenteditable="plaintext-only"] { box-shadow: inset 0 -2px 0 var
 
 /* Asa para arrastrar filas: oculta por ahora (la función sigue en el código, se puede reactivar quitando esta regla) */
 .row-drag { display: none !important; }
+.card.st-orange { background: var(--orange-card); box-shadow: inset 0 0 0 1px var(--orange-edge); }
+.card.st-orange:hover { background: var(--orange-card-h); }
+.card.st-orange .card-meta { color: #D0D6DB; }

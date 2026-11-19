@@ -344,7 +344,7 @@ let Api = {
       title: '',
       description: '',
       status: 'todo',
-      priority: null,
+      priority: 'baja',
       project_id: null,
       assignees: [],
       created_by: null,

@@ -17,11 +17,14 @@ const STATUS = {
   done:    { label: 'Completada',          cls: 'c-green',  order: 5 },
 };
 
+// Prioridad: siempre tiene un valor (por defecto "Baja")
 const PRIORITY = {
-  alta:  { label: 'Alta',  cls: 'c-red',    order: 0 },
-  media: { label: 'Media', cls: 'c-yellow', order: 1 },
-  baja:  { label: 'Baja',  cls: 'c-green',  order: 2 },
+  muy_alta: { label: 'Muy alta', cls: 'c-red',    order: 0 },
+  alta:     { label: 'Alta',     cls: 'c-orange', order: 1 },
+  media:    { label: 'Media',    cls: 'c-yellow', order: 2 },
+  baja:     { label: 'Baja',     cls: 'c-green',  order: 3 },
 };
+const DEFAULT_PRIORITY = 'baja';
 
 /* ---------- Iconos (SVG mínimos estilo Notion) ---------- */
 const P = {
@@ -172,9 +175,9 @@ const FILTERS = {
     values: (t) => [t.status],
   },
   priority: {
-    options: () => [...Object.keys(PRIORITY), ''],
+    options: () => Object.keys(PRIORITY),
     show: (v) => (v ? pill(PRIORITY, v) : EMPTY), text: (v) => (v ? PRIORITY[v].label : 'Vacío'),
-    values: (t) => [t.priority || ''],
+    values: (t) => [t.priority || DEFAULT_PRIORITY],
   },
   assignees: {
     options: () => [...USERS.map((u) => u.id), ''],
@@ -332,7 +335,7 @@ const laneHead = (label) => `<span class="tag c-gray">${esc(label)}</span>`;
 function boardLanes(g) {
   const stSel = prefs.filters.status || [];
   switch (g) {
-    case 'priority': return [...Object.keys(PRIORITY).map((k) => [k, laneHead(PRIORITY[k].label)]), ['', laneHead('Sin prioridad')]];
+    case 'priority': return Object.keys(PRIORITY).map((k) => [k, laneHead(PRIORITY[k].label)]);
     case 'assignees': return [...USERS.map((u) => [u.id, person(u.id)]), ['', laneHead('Sin responsable')]];
     case 'created_by': return USERS.map((u) => [u.id, person(u.id)]);
     case 'project_id': return state.projects.filter((p) => !p.archived && (isAllView() || p.id === prefs.project)).map((p) => [String(p.id), projectTag(p.id)]);
@@ -349,7 +352,7 @@ function laneValues(t, g) {
 async function moveToLane(t, g, from, to) {
   if (from === to) return;
   if (g === 'status') return setStatus(t, to);
-  if (g === 'priority') t.priority = to || null;
+  if (g === 'priority') t.priority = to || DEFAULT_PRIORITY;
   else if (g === 'project_id') t.project_id = Number(to);
   else if (g === 'assignees') {
     const list = to ? [...new Set([...t.assignees.filter((x) => x !== from), to])] : [];
@@ -365,8 +368,8 @@ function cardMeta(t, g) {
 }
 
 // Color de la tarjeta: el de su prioridad al agrupar por Prioridad; el de su estado en los demás casos
-const PRIORITY_CARD = { alta: 'st-todo', media: 'st-wait', baja: 'st-done' };
-const cardColor = (t, g) => (g === 'priority' ? PRIORITY_CARD[t.priority] || '' : `st-${t.status}`);
+const PRIORITY_CARD = { muy_alta: 'st-todo', alta: 'st-orange', media: 'st-wait', baja: 'st-done' };
+const cardColor = (t, g) => (g === 'priority' ? PRIORITY_CARD[t.priority || DEFAULT_PRIORITY] : `st-${t.status}`);
 
 // Columnas en el orden que eligió el usuario (las nuevas, como una persona recién creada, van al final)
 function orderedLanes(g) {
@@ -535,12 +538,6 @@ function prop(iconName, label, value, editable = false) {
   return `<div class="p-label">${icon(iconName)}${label}</div><div class="p-val ${editable ? 'editable' : ''}">${value}</div>`;
 }
 
-function pickSelect(field, map, value, allowEmpty) {
-  const shown = value ? pill(map, value) : '<span class="empty">Vacío</span>';
-  const opts = (allowEmpty ? '<option value="">Vacío</option>' : '') +
-    Object.entries(map).map(([k, v]) => `<option value="${k}" ${k === value ? 'selected' : ''}>${v.label}</option>`).join('');
-  return `<span class="pick">${shown}<select data-field="${field}">${opts}</select></span>`;
-}
 function pickUsers(ids) {
   return `<span class="people">${(ids || []).filter(user).map((id) =>
     `<span class="tag c-gray person">${esc(userName(id))}<button class="tag-x" data-remove-user="${id}" title="Quitar">×</button></span>`).join('')}</span>` +
@@ -572,9 +569,9 @@ function renderPanel() {
 
     ${psec('fields', 'Campos', `
     <div class="props">
-      ${prop('status', 'Estado', pickSelect('status', STATUS, t.status, false), true)}
+      ${prop('status', 'Estado', `<button class="pick-btn" id="pick-status">${pill(STATUS, t.status)}</button>`, true)}
       ${prop('person', 'Responsable', pickUsers(t.assignees), true)}
-      ${prop('select', 'Prioridad', pickSelect('priority', PRIORITY, t.priority, true), true)}
+      ${prop('select', 'Prioridad', `<button class="pick-btn" id="pick-priority">${pill(PRIORITY, t.priority || DEFAULT_PRIORITY)}</button>`, true)}
       ${prop('cal', 'Fecha límite', `<button class="pick-btn" id="pick-due">${t.due_at ? fmtDue(t.due_at) : '<span class="empty">Sin definir</span>'}</button>`, true)}
       ${prop('select', 'Proyecto', `<button class="pick-btn" id="pick-project">${projectTag(t.project_id) || EMPTY}</button>`, true)}
       ${prop('link', 'Depende de', deps.map((d) => depChip(d, true)).join('') +
@@ -883,8 +880,8 @@ function refreshTask(id) {
 function openCellSelect(anchor, taskId, field) {
   const t = byId(taskId);
   let opts = [];
-  if (field === 'status') opts = Object.keys(STATUS).map((k) => [k, laneHead(STATUS[k].label)]);
-  if (field === 'priority') opts = [...Object.keys(PRIORITY).map((k) => [k, pill(PRIORITY, k)]), ['', EMPTY]];
+  if (field === 'status') opts = Object.keys(STATUS).map((k) => [k, pill(STATUS, k)]);
+  if (field === 'priority') opts = Object.keys(PRIORITY).map((k) => [k, pill(PRIORITY, k)]);
   if (field === 'project_id') opts = state.projects.filter((p) => !p.archived || p.id === t.project_id).map((p) => [String(p.id), projectTag(p.id)]);
   const cur = String(t[field] ?? '');
   const optsHtml = (q = '') => opts
@@ -1020,7 +1017,7 @@ function resetDeleteBtn() {
 // Crea una tarea en el proyecto actual y abre su panel con el título listo para escribir
 async function createNewTask(extra = {}) {
   const project_id = isAllView() ? (state.projects.find((p) => !p.archived) || state.projects[0]).id : prefs.project;
-  const t = await Api.createTask({ project_id, created_by: CURRENT_USER, assignees: [CURRENT_USER], status: 'todo', ...extra });
+  const t = await Api.createTask({ project_id, created_by: CURRENT_USER, assignees: [CURRENT_USER], status: 'todo', priority: DEFAULT_PRIORITY, ...extra });
   state.tasks.push(t);
   renderTable();
   await openTask(t.id);
@@ -1546,7 +1543,7 @@ document.addEventListener('click', async (e) => {
   const gp = target.closest('[data-group]');
   if (gp) { prefs.groupBy = gp.dataset.group; savePrefs(); closePopover(); renderTable(); return; }
   if (pop().contains(target)) return;
-  if (pop().classList.contains('open') && !target.closest('#add-dep, #add-rdep, #cols-tool, #group-tool, #add-user, #pick-project, #pick-due')) { closePopover(); }
+  if (pop().classList.contains('open') && !target.closest('#add-dep, #add-rdep, #cols-tool, #group-tool, #add-user, #pick-project, #pick-due, #pick-status, #pick-priority')) { closePopover(); }
 
   // Borrar adjunto (antes que el enlace de descarga)
   const delAtt = target.closest('[data-del-att]');
@@ -1602,6 +1599,8 @@ document.addEventListener('click', async (e) => {
   if (target.closest('#add-user')) { openUsersMenu(target.closest('#add-user')); return; }
   if (target.closest('#pick-due')) { openCellDate(target.closest('#pick-due'), state.openId); return; }
   if (target.closest('#pick-project')) { openCellSelect(target.closest('#pick-project'), state.openId, 'project_id'); return; }
+  if (target.closest('#pick-status')) { openCellSelect(target.closest('#pick-status'), state.openId, 'status'); return; }
+  if (target.closest('#pick-priority')) { openCellSelect(target.closest('#pick-priority'), state.openId, 'priority'); return; }
   const rmUser = target.closest('[data-remove-user]');
   if (rmUser) {
     const t = byId(state.openId);
@@ -1699,7 +1698,7 @@ document.addEventListener('click', async (e) => {
     const extra = {};
     if (lane) {
       if (g === 'status') extra.status = v;
-      if (g === 'priority') extra.priority = v || null;
+      if (g === 'priority') extra.priority = v || DEFAULT_PRIORITY;
       if (g === 'project_id') extra.project_id = Number(v);
       if (g === 'assignees') extra.assignees = v ? [v] : [];
       if (g === 'created_by') extra.created_by = v;
@@ -2354,6 +2353,10 @@ window.addEventListener('unhandledrejection', (e) => {
         delete t.assignee;
         await Api.saveTask(t, { silent: true });
       }
+    }
+    // Migración: la prioridad ya no puede quedar vacía; las tareas sin prioridad pasan a "Baja"
+    for (const t of state.tasks) {
+      if (!t.priority || !(t.priority in PRIORITY)) { t.priority = DEFAULT_PRIORITY; await Api.saveTask(t, { silent: true }); }
     }
     // Base nueva (modo compartido): se crea un primer proyecto para empezar
     if (!state.projects.length) {

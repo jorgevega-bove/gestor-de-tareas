@@ -82,7 +82,7 @@
   const TASK_COLS = ['project_id', 'position', 'title', 'description', 'status', 'priority', 'due_at', 'created_by'];
   const taskRow = (t) => ({
     project_id: t.project_id, position: t.position ?? null, title: t.title || '', description: t.description || '',
-    status: t.status || 'todo', priority: t.priority || null, due_at: t.due_at || null, created_by: t.created_by || null,
+    status: t.status || 'todo', priority: t.priority || 'baja', due_at: t.due_at || null, created_by: t.created_by || null,
   });
   const mapComment = (r) => ({ id: r.id, task_id: r.task_id, author: r.author, body: r.body, created_at: toLocal(r.created_at) });
   const numericEntity = (e) => e === 'task' || e === 'project';

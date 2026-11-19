@@ -61,7 +61,7 @@ create table if not exists public.tasks (
   title        text not null default '',
   description  text not null default '',
   status       text not null default 'todo' check (status in ('todo', 'doing', 'wait', 'done')),
-  priority     text check (priority in ('alta', 'media', 'baja')),
+  priority     text not null default 'baja' check (priority in ('muy_alta', 'alta', 'media', 'baja')),
   -- Fecha límite como fecha de calendario, con hora opcional: '2026-11-20' o '2026-11-20T18:00'
   due_at       text check (due_at ~ '^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$'),
   created_by   text references public.people (id),
