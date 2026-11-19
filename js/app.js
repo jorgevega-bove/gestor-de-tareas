@@ -322,16 +322,15 @@ function renderTable() {
 /* ---------- Tablero (Kanban) ---------- */
 /* ---------- Kanban: agrupar por un campo ---------- */
 const GROUP_LABEL = { status: 'Estado', assignees: 'Responsable', priority: 'Prioridad' };
-const LANE_BG = { 'c-red': 'var(--red-lane)', 'c-blue': 'var(--blue-lane)', 'c-yellow': 'var(--yellow-lane)', 'c-green': 'var(--green-lane)' };
-// Columnas del Kanban según el campo elegido: [valor, encabezado, color de fondo]
+// Columnas del Kanban según el campo elegido: [valor, encabezado] (las columnas son neutras; el color va en las tarjetas)
 function boardLanes(g) {
   const stSel = prefs.filters.status || [];
   switch (g) {
-    case 'priority': return [...Object.keys(PRIORITY).map((k) => [k, pill(PRIORITY, k), LANE_BG[PRIORITY[k].cls]]), ['', '<span class="empty">Sin prioridad</span>']];
+    case 'priority': return [...Object.keys(PRIORITY).map((k) => [k, pill(PRIORITY, k)]), ['', '<span class="empty">Sin prioridad</span>']];
     case 'assignees': return [...USERS.map((u) => [u.id, person(u.id)]), ['', '<span class="empty">Sin responsable</span>']];
     case 'created_by': return USERS.map((u) => [u.id, person(u.id)]);
     case 'project_id': return state.projects.filter((p) => !p.archived && (isAllView() || p.id === prefs.project)).map((p) => [String(p.id), projectTag(p.id)]);
-    default: return Object.keys(STATUS).filter((k) => !stSel.length || stSel.includes(k)).map((k) => [k, pill(STATUS, k), LANE_BG[STATUS[k].cls]]);
+    default: return Object.keys(STATUS).filter((k) => !stSel.length || stSel.includes(k)).map((k) => [k, pill(STATUS, k)]);
   }
 }
 // Valores de una tarea para el campo de agrupación (una tarea con varios responsables aparece en varias columnas)
@@ -365,12 +364,12 @@ function renderBoard() {
   const list = sortedTasks();
   const readOnly = g === 'created_by';
   $('#group-tool').innerHTML = `${TOGGLE_ICON}Propiedades`;
-  $('#board-view').innerHTML = boardLanes(g).map(([k, head, bg]) => {
+  $('#board-view').innerHTML = boardLanes(g).map(([k, head]) => {
     const items = list.filter((t) => laneValues(t, g).includes(k));
-    return `<div class="lane" data-lane="${esc(k)}" style="background:${bg || 'var(--sidebar)'}">
+    return `<div class="lane" data-lane="${esc(k)}">
       <div class="lane-h">${head}<span class="n">${items.length}</span></div>
       <div class="cards">${items.map((t) => `
-        <div class="card ${g === 'assignees' ? `st-${t.status}` : ''}" ${readOnly ? '' : 'draggable="true"'} data-open="${t.id}" data-card="${t.id}">
+        <div class="card st-${t.status}" ${readOnly ? '' : 'draggable="true"'} data-open="${t.id}" data-card="${t.id}">
           <div class="card-title">${t.title ? esc(t.title) : '<span class="untitled">Sin título</span>'}</div>
           ${cardMeta(t, g)}
         </div>`).join('')}</div>
