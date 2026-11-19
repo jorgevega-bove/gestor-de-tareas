@@ -1046,12 +1046,20 @@ function resetDeleteBtn() {
   $('#delete-task').classList.remove('danger');
 }
 
-// Crea una tarea en el proyecto actual y abre su panel con el título listo para escribir
+// Crea una tarea en el proyecto actual. En la tabla, la fila nueva queda con el
+// título listo para escribir; en el Kanban (o si la fila no se ve) se abre su panel.
 async function createNewTask(extra = {}) {
   const project_id = isAllView() ? (state.projects.find((p) => !p.archived) || state.projects[0]).id : prefs.project;
   const t = await Api.createTask({ project_id, created_by: CURRENT_USER, assignees: [CURRENT_USER], status: 'todo', priority: DEFAULT_PRIORITY, ...extra });
   state.tasks.push(t);
+  if (state.openId) closeTask();
   renderTable();
+  const td = prefs.view === 'table' && document.querySelector(`tr[data-row="${t.id}"] td.c-title`);
+  if (td) {
+    td.scrollIntoView({ block: 'nearest' });
+    editTitle(td, t.id);
+    return;
+  }
   await openTask(t.id);
   $('#f-title').focus();
 }
