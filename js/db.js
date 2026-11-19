@@ -177,6 +177,9 @@ let Api = {
   // Presencia (solo en modo compartido; en local no hay otras personas)
   watchPresence() {},
   async setPresenceTask() {},
+  // Detección de cambios simultáneos: en local no hay otras personas
+  async taskDescription() { return null; },
+  async lastEditor() { return null; },
   mode: 'local',
   supportsUndo: true,
 

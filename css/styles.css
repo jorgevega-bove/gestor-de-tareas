@@ -848,3 +848,12 @@ td.c-title .lock { margin-left: -2px; }
 .presence-note { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); background: var(--raised); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px 4px 10px; margin-left: 4px; }
 .presence-note[hidden] { display: none; }
 .presence-note .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+
+/* ---------- Descripción: cambio simultáneo ---------- */
+.desc-conflict { border: 1px solid var(--line-strong); background: var(--raised); border-radius: 8px; padding: 12px 14px; margin: 4px 0 10px; font-size: 13px; color: var(--text-2); }
+.desc-conflict b { color: var(--text); font-weight: 600; }
+.desc-conflict details { margin: 8px 0; }
+.desc-conflict summary { cursor: pointer; color: var(--text-2); }
+.desc-conflict summary:hover { color: var(--text); }
+.dc-theirs { margin-top: 6px; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; white-space: pre-wrap; max-height: 180px; overflow: auto; color: var(--text); }
+.dc-actions { display: flex; gap: 8px; justify-content: flex-end; }

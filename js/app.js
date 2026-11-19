@@ -674,6 +674,7 @@ function renderPanel() {
 
     <div class="divider"></div>
     ${psec('desc', 'Descripción', `
+    ${descConflictHtml(t)}
     <textarea class="desc" id="f-desc" placeholder="Escribe aquí los detalles de la tarea…"></textarea>`)}
 
     <div class="divider"></div>
@@ -753,6 +754,7 @@ async function openTask(id, { back = false } = {}) {
   state.openId = id;
   state.addingTime = false;
   Api.setPresenceTask(id);
+  if (descBase && descBase.id !== id) descBase = null;
   [state.comments, state.attachments] = await Promise.all([Api.listComments(id), Api.listAttachments(id)]);
   state.comments.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id);
   $('#overlay').classList.add('open');
@@ -1747,6 +1749,9 @@ document.addEventListener('click', async (e) => {
   if (pop().contains(target)) return;
   if (pop().classList.contains('open') && !target.closest('#add-dep, #add-rdep, #cols-tool, #group-tool, #add-user, #pick-project, #pick-due, #pick-status, #pick-priority, #pick-perms')) { closePopover(); }
 
+  const dk = target.closest('[data-desc-keep]');
+  if (dk) { await resolveDescConflict(dk.dataset.descKeep); return; }
+
   // Panel de una tarea sin permiso: solo lectura (comentar sí se puede)
   if (target.closest(PANEL_EDIT) && $('#modal').contains(target) && denyEdit(byId(state.openId))) return;
   if (target.closest('#pick-perms')) { openPermsPicker(target.closest('#pick-perms')); return; }
@@ -2061,9 +2066,10 @@ document.addEventListener('input', (e) => {
   } else if (el.id === 'f-desc') {
     autoGrow(el);
     byId(state.openId).description = el.value;
+    if (descConflict && descConflict.id === state.openId) descConflict.mine = el.value; // sigue siendo tu versión pendiente
     clearTimeout(descTimer);
     const id = state.openId;
-    descTimer = setTimeout(() => Api.saveTask(byId(id)), 400);
+    descTimer = setTimeout(() => saveDescription(id), 400);
   }
 });
 
@@ -2204,6 +2210,8 @@ async function afterHistoryChange() {
   await loadPeople();
   state.projects = await Api.listProjects();
   state.tasks = await Api.listTasks();
+  // Si hay un conflicto de descripción pendiente, tu versión (aún sin guardar) no se pierde al recargar
+  if (descConflict && byId(descConflict.id)) byId(descConflict.id).description = descConflict.mine;
   if (!isAllView() && !projectById(prefs.project)) { prefs.project = state.projects[0].id; savePrefs(); }
   if (state.openId) {
     if (byId(state.openId)) {
@@ -2528,6 +2536,57 @@ async function sharedSignIn() {
 
 // Recarga los datos cuando otra persona cambia algo (si no estás escribiendo en ese momento)
 let remoteTimer;
+/* ---------- Descripción: aviso si otra persona la cambió mientras escribías ----------
+ * Al empezar a escribir se recuerda la versión de partida. Antes de guardar se compara con
+ * la del servidor: si otra persona la cambió entretanto, no se guarda y se pregunta cuál conservar. */
+let descBase = null;       // { id, text }: descripción al empezar a escribir
+let descConflict = null;   // { id, theirs, by }
+function descConflictHtml(t) {
+  if (!descConflict || descConflict.id !== t.id) return '';
+  const who = esc(userName(descConflict.by) || 'Otra persona');
+  return `<div class="desc-conflict">
+    <div class="dc-msg"><b>${who}</b> cambió la descripción mientras escribías. Tu versión aún no se guardó.</div>
+    <details><summary>Ver su versión</summary><div class="dc-theirs">${esc(descConflict.theirs) || '<span class="empty">(vacía)</span>'}</div></details>
+    <div class="dc-actions"><button class="btn-cancel" data-desc-keep="theirs">Usar la suya</button><button class="btn-new" data-desc-keep="mine">Mantener la mía</button></div>
+  </div>`;
+}
+document.addEventListener('focusin', (e) => {
+  if (e.target.id !== 'f-desc' || !state.openId) return;
+  if (!descBase || descBase.id !== state.openId) descBase = { id: state.openId, text: byId(state.openId).description };
+});
+document.addEventListener('focusout', (e) => {
+  // Al salir del campo sin cambios pendientes, la próxima vez se parte de lo que haya entonces
+  if (e.target.id === 'f-desc' && !descConflict) setTimeout(() => { if (document.activeElement.id !== 'f-desc') descBase = null; }, 600);
+});
+async function saveDescription(id) {
+  const t = byId(id);
+  if (!t) return;
+  if (descConflict && descConflict.id === id) return; // espera la decisión
+  const mine = t.description;
+  const base = descBase && descBase.id === id ? descBase.text : null;
+  if (base !== null) {
+    const server = await Api.taskDescription(id);
+    if (server !== null && server !== base && server !== mine) {
+      descConflict = { id, theirs: server, mine, by: await Api.lastEditor(id, 'description') };
+      if (state.openId === id) renderPanel();
+      return;
+    }
+  }
+  await Api.saveTask(t);
+  if (descBase && descBase.id === id) descBase.text = mine;
+}
+async function resolveDescConflict(keep) {
+  const c = descConflict;
+  const t = c && byId(c.id);
+  descConflict = null;
+  if (!t) return;
+  t.description = keep === 'theirs' ? c.theirs : c.mine;
+  descBase = { id: t.id, text: keep === 'theirs' ? c.theirs : t.description };
+  await Api.saveTask(t);
+  toast(keep === 'theirs' ? 'Se dejó la descripción de la otra persona' : 'Se guardó tu versión de la descripción');
+  if (state.openId === t.id) renderPanel();
+}
+
 /* ---------- Presencia: aviso mientras otra persona tiene abierta la misma tarea ---------- */
 let presenceList = [];
 function renderPresence() {

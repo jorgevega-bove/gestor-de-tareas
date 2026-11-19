@@ -318,6 +318,17 @@
       ch.subscribe();
     },
 
+    // Descripción guardada ahora en el servidor (para detectar si otra persona la cambió mientras escribías)
+    async taskDescription(id) {
+      const r = ok(await sb.from('tasks').select('description').eq('id', id).maybeSingle());
+      return r ? r.description || '' : null;
+    },
+    // Última persona (distinta de quien pregunta) que cambió un campo de la tarea
+    async lastEditor(id, field) {
+      const r = ok(await sb.from('activity').select('user_id').eq('entity', 'task').eq('entity_id', String(id))
+        .eq('field', field).neq('user_id', SupaApi.currentUser).order('id', { ascending: false }).limit(1));
+      return r[0] ? r[0].user_id : null;
+    },
     // Presencia: qué tarea tiene abierta cada pestaña (para avisar si dos personas están en la misma)
     watchPresence(cb) {
       presence.cb = cb;
