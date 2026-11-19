@@ -323,14 +323,16 @@ function renderTable() {
 /* ---------- Kanban: agrupar por un campo ---------- */
 const GROUP_LABEL = { status: 'Estado', assignees: 'Responsable', priority: 'Prioridad' };
 // Columnas del Kanban según el campo elegido: [valor, encabezado] (las columnas son neutras; el color va en las tarjetas)
+// Encabezado de columna: siempre neutro (el color va en las tarjetas)
+const laneHead = (label) => `<span class="tag c-gray">${esc(label)}</span>`;
 function boardLanes(g) {
   const stSel = prefs.filters.status || [];
   switch (g) {
-    case 'priority': return [...Object.keys(PRIORITY).map((k) => [k, pill(PRIORITY, k)]), ['', '<span class="empty">Sin prioridad</span>']];
+    case 'priority': return [...Object.keys(PRIORITY).map((k) => [k, laneHead(PRIORITY[k].label)]), ['', '<span class="empty">Sin prioridad</span>']];
     case 'assignees': return [...USERS.map((u) => [u.id, person(u.id)]), ['', '<span class="empty">Sin responsable</span>']];
     case 'created_by': return USERS.map((u) => [u.id, person(u.id)]);
     case 'project_id': return state.projects.filter((p) => !p.archived && (isAllView() || p.id === prefs.project)).map((p) => [String(p.id), projectTag(p.id)]);
-    default: return Object.keys(STATUS).filter((k) => !stSel.length || stSel.includes(k)).map((k) => [k, pill(STATUS, k)]);
+    default: return Object.keys(STATUS).filter((k) => !stSel.length || stSel.includes(k)).map((k) => [k, laneHead(STATUS[k].label)]);
   }
 }
 // Valores de una tarea para el campo de agrupación (una tarea con varios responsables aparece en varias columnas)
@@ -358,6 +360,10 @@ function cardMeta(t, g) {
   return `<div class="card-meta">Responsable: ${esc(assigneeNames(t) || 'Sin responsable')}</div>`;
 }
 
+// Color de la tarjeta: el de su prioridad al agrupar por Prioridad; el de su estado en los demás casos
+const PRIORITY_CARD = { alta: 'st-todo', media: 'st-wait', baja: 'st-done' };
+const cardColor = (t, g) => (g === 'priority' ? PRIORITY_CARD[t.priority] || '' : `st-${t.status}`);
+
 function renderBoard() {
   if (!GROUP_LABEL[prefs.groupBy]) prefs.groupBy = 'status'; // opciones antiguas (Proyecto, Creado por) vuelven a Estado
   const g = prefs.groupBy;
@@ -369,7 +375,7 @@ function renderBoard() {
     return `<div class="lane" data-lane="${esc(k)}">
       <div class="lane-h">${head}<span class="n">${items.length}</span></div>
       <div class="cards">${items.map((t) => `
-        <div class="card st-${t.status}" ${readOnly ? '' : 'draggable="true"'} data-open="${t.id}" data-card="${t.id}">
+        <div class="card ${cardColor(t, g)}" ${readOnly ? '' : 'draggable="true"'} data-open="${t.id}" data-card="${t.id}">
           <div class="card-title">${t.title ? esc(t.title) : '<span class="untitled">Sin título</span>'}</div>
           ${cardMeta(t, g)}
         </div>`).join('')}</div>
@@ -854,7 +860,7 @@ function refreshTask(id) {
 function openCellSelect(anchor, taskId, field) {
   const t = byId(taskId);
   let opts = [];
-  if (field === 'status') opts = Object.keys(STATUS).map((k) => [k, pill(STATUS, k)]);
+  if (field === 'status') opts = Object.keys(STATUS).map((k) => [k, laneHead(STATUS[k].label)]);
   if (field === 'priority') opts = [...Object.keys(PRIORITY).map((k) => [k, pill(PRIORITY, k)]), ['', EMPTY]];
   if (field === 'project_id') opts = state.projects.filter((p) => !p.archived || p.id === t.project_id).map((p) => [String(p.id), projectTag(p.id)]);
   const cur = String(t[field] ?? '');
