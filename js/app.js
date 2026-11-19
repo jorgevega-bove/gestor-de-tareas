@@ -94,6 +94,9 @@ prefs.sort = prefs.sort || { key: null, dir: null };
 prefs.view = prefs.view || 'table';
 prefs.filters = prefs.filters || {};
 prefs.laneOrder = prefs.laneOrder || {}; // orden de las columnas del Kanban, por propiedad
+// Panel de tarea: sección abierta (solo una a la vez). Por defecto, Campos.
+if (prefs.panelOpen === undefined) prefs.panelOpen = 'fields';
+delete prefs.panelClosed;
 // Secciones abiertas en la barra lateral (pueden estar las dos abiertas a la vez)
 if (!Array.isArray(prefs.openSections)) prefs.openSections = prefs.openSection === undefined ? ['active'] : [prefs.openSection].filter(Boolean);
 delete prefs.openSection;
@@ -547,7 +550,7 @@ function pickUsers(ids) {
 // Sección desplegable del panel: triangulito + título; se recuerda cuáles están plegadas
 const CHEV = '<svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>';
 function psec(key, title, body, extra = '') {
-  const closed = (prefs.panelClosed || []).includes(key);
+  const closed = prefs.panelOpen !== key; // solo una sección abierta a la vez
   return `<div class="psec ${closed ? 'closed' : ''}" data-psec="${key}">
     <div class="section-h first psec-h"><button class="psec-toggle" data-ptoggle="${key}">${CHEV}${title}</button>${extra}</div>
     <div class="psec-body">${body}</div>
@@ -610,7 +613,7 @@ function renderPanel() {
         <button class="x" data-del-att="${a.id}" title="Eliminar">×</button></a>`;
     }).join('')}</div>` : '<div class="nothing">Sin archivos</div>'}`, `<label class="add attach-btn" title="Adjuntar archivos">${CLIP_ICON}<input type="file" id="up-file" multiple hidden></label>`)}
 
-    <div id="task-log">${state.taskLog && state.taskLog.id === t.id ? state.taskLog.html : ''}</div>
+    <div id="task-log">${state.taskLog && state.taskLog.id === t.id ? taskLogHtml(state.taskLog.list) : ''}</div>
   `;
   loadTaskLog(t.id);
 
@@ -635,13 +638,16 @@ function taskLogEntries(all, id) {
       : e.field === 'depends_on' && named(e)))
     .sort((a, b) => b.ts - a.ts || b.id - a.id).slice(0, TASK_LOG_MAX);
 }
-async function loadTaskLog(id) {
-  const list = taskLogEntries(await Api.listTaskActivity(id), id);
-  const html = list.length ? '<div class="divider"></div>' + psec('log', 'Bitácora', list.map((e) => {
+function taskLogHtml(list) {
+  return list.length ? '<div class="divider"></div>' + psec('log', 'Bitácora', list.map((e) => {
     const who = e.user === 'auto' ? '<span class="tag c-gray log-auto">Automático</span>' : `<span class="tag c-gray">${esc(userName(e.user) || e.user || '—')}</span>`;
     return `<div class="log-row"><span class="log-time">${e.at.slice(8, 10)}/${e.at.slice(5, 7)} ${e.at.slice(11, 16)}</span><div class="log-text">${who} ${activityText(e)}</div></div>`;
   }).join('')) : '';
-  state.taskLog = { id, html };
+}
+async function loadTaskLog(id) {
+  const list = taskLogEntries(await Api.listTaskActivity(id), id);
+  const html = taskLogHtml(list);
+  state.taskLog = { id, list };
   const slot = $('#task-log');
   if (state.openId === id && slot && slot.innerHTML !== html) slot.innerHTML = html;
 }
@@ -1863,9 +1869,7 @@ document.addEventListener('click', async (e) => {
   const pt = target.closest('[data-ptoggle]');
   if (pt) {
     const k = pt.dataset.ptoggle;
-    const closed = new Set(prefs.panelClosed || []);
-    if (closed.has(k)) closed.delete(k); else closed.add(k);
-    prefs.panelClosed = [...closed];
+    prefs.panelOpen = prefs.panelOpen === k ? null : k; // abrir una sección cierra la que estaba abierta
     savePrefs();
     renderPanel();
     return;
