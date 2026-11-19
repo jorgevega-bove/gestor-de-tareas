@@ -412,3 +412,42 @@ revoke execute on function public.puede_editar_tarea(bigint) from public, anon;
 grant execute on function public.persona_actual() to authenticated;
 grant execute on function public.puede_editar(public.tasks) to authenticated;
 grant execute on function public.puede_editar_tarea(bigint) to authenticated;
+-- ---------------------------------------------------------------------
+-- 10. Cambios en grupo: actualiza varias tareas enviando solo las columnas
+--     que cambiaron en cada una (así no se pisan cambios de otras personas).
+--     Corre con los permisos de quien la llama: aplican RLS y el trigger.
+-- ---------------------------------------------------------------------
+create or replace function public.actualizar_tareas(cambios jsonb)
+returns void
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  c jsonb;
+begin
+  if not public.es_usuario_permitido() then
+    raise exception 'No autorizado';
+  end if;
+  for c in select value from jsonb_array_elements(cambios)
+  loop
+    update public.tasks set
+      project_id  = case when c ? 'project_id'  then (c->>'project_id')::bigint else project_id end,
+      position    = case when c ? 'position'    then (c->>'position')::integer else position end,
+      title       = case when c ? 'title'       then coalesce(c->>'title', '') else title end,
+      description = case when c ? 'description' then coalesce(c->>'description', '') else description end,
+      status      = case when c ? 'status'      then c->>'status' else status end,
+      priority    = case when c ? 'priority'    then c->>'priority' else priority end,
+      due_at      = case when c ? 'due_at'      then c->>'due_at' else due_at end,
+      created_by  = case when c ? 'created_by'  then c->>'created_by' else created_by end,
+      editors     = case when c ? 'editors' then
+                      case when jsonb_typeof(c->'editors') = 'array'
+                           then array(select jsonb_array_elements_text(c->'editors')) else null end
+                    else editors end
+    where id = (c->>'id')::bigint;
+  end loop;
+end;
+$$;
+
+revoke execute on function public.actualizar_tareas(jsonb) from public, anon;
+grant execute on function public.actualizar_tareas(jsonb) to authenticated;

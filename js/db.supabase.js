@@ -180,7 +180,7 @@
       const now = taskRow(task), before = taskRow(prev);
       const cols = {};
       for (const c of TASK_COLS) if (JSON.stringify(now[c]) !== JSON.stringify(before[c])) cols[c] = now[c];
-      if (Object.keys(cols).length) updates.push({ id: task.id, cols, row: now });
+      if (Object.keys(cols).length) updates.push({ id: task.id, cols });
       for (const p of task.assignees.filter((x) => !prev.assignees.includes(x))) addA.push({ task_id: task.id, person_id: p });
       const goneA = prev.assignees.filter((x) => !task.assignees.includes(x));
       if (goneA.length) rmA.set(task.id, goneA);
@@ -201,13 +201,15 @@
       }
       cache.tasks.set(task.id, clone(task)); // la foto pasa a ser el estado nuevo
     }
-    // 1. Tareas: una sola tarea → solo sus campos cambiados; varias → un solo lote
+    // 1. Tareas: siempre se envían solo los campos que cambiaron, para no pisar
+    //    lo que otra persona haya cambiado en otros campos de la misma tarea.
+    //    Una tarea → update directo; varias → un solo lote con actualizar_tareas.
     if (updates.length === 1) {
       const u = updates[0];
       await retry(async () => ok(await sb.from('tasks').update(u.cols).eq('id', u.id)));
     } else if (updates.length > 1) {
-      const rows = updates.map((u) => ({ id: u.id, ...u.row }));
-      for (const part of chunks(rows)) await retry(async () => ok(await sb.from('tasks').upsert(part, { onConflict: 'id' })));
+      const rows = updates.map((u) => ({ id: u.id, ...u.cols }));
+      for (const part of chunks(rows)) await retry(async () => ok(await sb.rpc('actualizar_tareas', { cambios: part })));
     }
     // 2. Responsables y dependencias: solo lo que se agregó o quitó
     for (const [id, list] of rmA) await retry(async () => ok(await sb.from('task_assignees').delete().eq('task_id', id).in('person_id', list)));
@@ -394,9 +396,10 @@
       const rows = [];
       ids.forEach((id, i) => {
         const p = cache.projects.get(id);
-        if (p && p.position !== i) { p.position = i; rows.push({ id, name: p.name, position: i, archived: p.archived }); }
+        if (p && p.position !== i) { p.position = i; rows.push({ id, position: i }); }
       });
-      if (rows.length) await retry(async () => ok(await sb.from('projects').upsert(rows, { onConflict: 'id' })));
+      // Solo la posición: así no se pisa un cambio de nombre o archivado hecho por otra persona
+      await Promise.all(rows.map((r) => retry(async () => ok(await sb.from('projects').update({ position: r.position }).eq('id', r.id)))));
     },
     // Elimina el proyecto con todas sus tareas (y sus comentarios y archivos)
     async deleteProject(id) {
