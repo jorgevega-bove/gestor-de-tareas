@@ -66,6 +66,7 @@ const COLUMNS = [
   { key: 'code',       label: 'ID',                icon: 'id',     hidden: true,  sort: (t) => t.id },
   { key: 'project_id', label: 'Proyecto',          icon: 'select', hidden: true,  sort: (t) => projectName(t.project_id) },
   { key: 'depends_on', label: 'Depende de',        icon: 'link',    hidden: true,  sort: (t) => t.depends_on.length || null },
+  { key: 'blocks',     label: 'Condiciona a',      icon: 'link',    hidden: true,  sort: (t) => blocking(t).length || null },
   { key: 'created_by', label: 'Creado por',        icon: 'person', hidden: true,  sort: (t) => userName(t.created_by) },
   { key: 'created_at', label: 'Fecha de creación', icon: 'clock',  hidden: true,  sort: (t) => t.created_at },
 ];
@@ -102,14 +103,18 @@ if (!Array.isArray(prefs.openSections)) prefs.openSections = prefs.openSection =
 delete prefs.openSection;
 if (prefs.filters.status) prefs.filters.status = prefs.filters.status.filter((v) => v in STATUS);
 prefs.hidden = prefs.hidden || COLUMNS.filter((c) => c.hidden).map((c) => c.key);
-// Orden de columnas: se respeta el guardado y se agregan al final columnas nuevas
-prefs.order = [
-  ...(prefs.order || []).filter((k) => COLUMNS.some((c) => c.key === k)),
-  ...COLUMNS.map((c) => c.key).filter((k) => !(prefs.order || []).includes(k)),
-];
+// Columnas nuevas que vienen ocultas por defecto también quedan ocultas para quien ya tenía preferencias guardadas
+if (prefs.order) for (const c of COLUMNS) if (c.hidden && !prefs.order.includes(c.key) && !prefs.hidden.includes(c.key)) prefs.hidden.push(c.key);
+// Orden de columnas: se respeta el guardado; las columnas nuevas van tras la anterior en COLUMNS (o al final)
+prefs.order = (prefs.order || []).filter((k) => COLUMNS.some((c) => c.key === k));
+COLUMNS.forEach((c, i) => {
+  if (prefs.order.includes(c.key)) return;
+  const prev = i > 0 ? prefs.order.indexOf(COLUMNS[i - 1].key) : -1;
+  if (prev >= 0) prefs.order.splice(prev + 1, 0, c.key); else prefs.order.push(c.key);
+});
 // Anchos de columna (px). Se pueden cambiar arrastrando el borde del encabezado.
 const DEFAULT_WIDTHS = { title: 320, status: 170, assignees: 190, priority: 120, due_at: 160,
-  code: 90, project_id: 140, depends_on: 150, created_by: 140, created_at: 160 };
+  code: 90, project_id: 140, depends_on: 150, blocks: 150, created_by: 140, created_at: 160 };
 prefs.widths = { ...DEFAULT_WIDTHS, ...(prefs.widths || {}) };
 const ID_WIDTH = 58; // "# ID" y números de hasta 4 cifras
 prefs.widths.code = ID_WIDTH; // ancho fijo: lo justo para un ID de 4 cifras
@@ -296,7 +301,7 @@ function sortedTasks({ manual = false } = {}) {
   });
 }
 
-const EDITABLE = ['title', 'status', 'priority', 'assignees', 'project_id', 'due_at', 'depends_on'];
+const EDITABLE = ['title', 'status', 'priority', 'assignees', 'project_id', 'due_at', 'depends_on', 'blocks'];
 function cell(col, t) {
   const ed = EDITABLE.includes(col.key) ? ` data-cell="${col.key}"` : '';
   switch (col.key) {
@@ -311,6 +316,7 @@ function cell(col, t) {
     case 'project_id': return `<td${ed}>${projectTag(t.project_id)}</td>`;
     case 'due_at': return `<td${ed}>${fmtDue(t.due_at)}</td>`;
     case 'depends_on': return `<td${ed}>${t.depends_on.map(byId).filter(Boolean).map((d) => depChip(d, false, false)).join('')}</td>`;
+    case 'blocks': return `<td${ed}>${blocking(t).map((d) => depChip(d, false, false, true)).join('')}</td>`;
     case 'created_by': return `<td>${person(t.created_by)}</td>`;
     case 'created_at': return `<td>${fmt(t.created_at)}</td>`;
   }
@@ -1015,6 +1021,7 @@ function editCell(td) {
   if (key === 'assignees') return openUsersMenu(td, id);
   if (key === 'due_at') return openCellDate(td, id);
   if (key === 'depends_on') return openDepPicker(td, id);
+  if (key === 'blocks') return openDepPicker(td, id, true);
 }
 
 function openColumnsMenu(anchor) {
