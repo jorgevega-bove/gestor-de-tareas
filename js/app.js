@@ -328,8 +328,8 @@ const laneHead = (label) => `<span class="tag c-gray">${esc(label)}</span>`;
 function boardLanes(g) {
   const stSel = prefs.filters.status || [];
   switch (g) {
-    case 'priority': return [...Object.keys(PRIORITY).map((k) => [k, laneHead(PRIORITY[k].label)]), ['', '<span class="empty">Sin prioridad</span>']];
-    case 'assignees': return [...USERS.map((u) => [u.id, person(u.id)]), ['', '<span class="empty">Sin responsable</span>']];
+    case 'priority': return [...Object.keys(PRIORITY).map((k) => [k, laneHead(PRIORITY[k].label)]), ['', laneHead('Sin prioridad')]];
+    case 'assignees': return [...USERS.map((u) => [u.id, person(u.id)]), ['', laneHead('Sin responsable')]];
     case 'created_by': return USERS.map((u) => [u.id, person(u.id)]);
     case 'project_id': return state.projects.filter((p) => !p.archived && (isAllView() || p.id === prefs.project)).map((p) => [String(p.id), projectTag(p.id)]);
     default: return Object.keys(STATUS).filter((k) => !stSel.length || stSel.includes(k)).map((k) => [k, laneHead(STATUS[k].label)]);
