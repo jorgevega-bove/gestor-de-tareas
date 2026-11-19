@@ -769,3 +769,10 @@ h1#page-title[contenteditable="plaintext-only"] { box-shadow: inset 0 -2px 0 var
 .card.st-doing { background: var(--blue-card); }   .card.st-doing:hover { background: var(--blue-card-h); }
 .card.st-wait  { background: var(--yellow-card); } .card.st-wait:hover  { background: var(--yellow-card-h); }
 .card.st-done  { background: var(--green-card); }  .card.st-done:hover  { background: var(--green-card-h); }
+
+/* Cambiar el ancho de columna desde cualquier punto del borde, en todo el alto de la tabla */
+.table-wrap { position: relative; }
+#col-guides { position: absolute; inset: 0 auto auto 0; width: 0; height: 0; z-index: 3; }
+#col-guides .col-resize { position: absolute; width: 8px; cursor: col-resize; }
+#col-guides .col-resize::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; background: transparent; transition: background .12s; }
+#col-guides .col-resize:hover::after, #col-guides .col-resize.active::after { background: var(--text-2); }

@@ -408,7 +408,6 @@ function renderTableView() {
   $('#thead').innerHTML = `<tr><th class="gutter"></th>${cols.map((c) => `
     <th data-head="${c.key}" data-col="${c.key}" ${c.key === PINNED ? 'data-pinned' : 'draggable="true"'} class="${c.key === key ? 'sorted' : ''} ${(prefs.filters[c.key] || []).length ? 'filtered' : ''}" title="Clic para ordenar o filtrar · arrastra para mover">
       <div class="h">${icon(c.icon)}${c.label}<span class="arrow">${(prefs.filters[c.key] || []).length ? `<span class="funnel">${FUNNEL_ICON}</span>` : ''}${c.key === key ? (dir === 'asc' ? '↑' : '↓') : ''}</span></div>
-      ${c.key === PINNED ? '' : `<span class="col-resize" data-resize="${c.key}" title="Arrastra para cambiar el ancho"></span>`}
     </th>`).join('')}</tr>`;
   const shown = sortedTasks();
   $('#rows').innerHTML = shown.length ? '' : `<tr class="no-results"><td></td><td colspan="${cols.length}">${state.tasks.some(inView) ? 'Ninguna tarea coincide con la búsqueda o los filtros' : (isAllView() ? 'No hay tareas en los proyectos en curso' : 'Este proyecto todavía no tiene tareas')}</td></tr>`;
@@ -422,7 +421,19 @@ function renderTableView() {
   $('#sort-tool').innerHTML = key
     ? `${SORT_ICON} ${COLUMNS.find((c) => c.key === key).label} ${dir === 'asc' ? '↑' : '↓'}`
     : '';
+  requestAnimationFrame(placeResizeGuides); // después de que la tabla se muestre (al volver del Kanban)
 }
+
+// Bordes para cambiar el ancho: una franja por columna que cubre todo el alto de la tabla
+function placeResizeGuides() {
+  const wrap = $('.table-wrap'), table = $('#task-table');
+  let box = $('#col-guides');
+  if (!box) { box = document.createElement('div'); box.id = 'col-guides'; wrap.appendChild(box); }
+  box.innerHTML = [...$('#thead').querySelectorAll('th[data-col]:not([data-pinned])')].map((th) =>
+    `<span class="col-resize" data-resize="${th.dataset.col}" title="Arrastra para cambiar el ancho · doble clic para restablecer"
+      style="left:${table.offsetLeft + th.offsetLeft + th.offsetWidth - 4}px;top:${table.offsetTop}px;height:${table.offsetHeight}px"></span>`).join('');
+}
+window.addEventListener('resize', () => { if (prefs.view === 'table') placeResizeGuides(); });
 
 function applySort(key) {
   // Primer clic: ascendente (A→Z, 0→9). Clics siguientes: invierte el orden.
@@ -2020,6 +2031,8 @@ document.addEventListener('mousemove', (e) => {
   resizing.col.style.width = `${w}px`;
   const cols = visibleColumns();
   $('#task-table').style.width = `${GUTTER + cols.reduce((n, c) => n + prefs.widths[c.key], 0)}px`;
+  placeResizeGuides();
+  $(`#col-guides [data-resize="${resizing.key}"]`).classList.add('active');
 });
 document.addEventListener('mouseup', () => {
   if (!resizing) return;
