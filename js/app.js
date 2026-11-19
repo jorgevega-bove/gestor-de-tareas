@@ -19,8 +19,8 @@ const STATUS = {
 
 // Prioridad: siempre tiene un valor (por defecto "Baja")
 const PRIORITY = {
-  muy_alta: { label: 'Muy alta', cls: 'c-red',    order: 0 },
-  alta:     { label: 'Alta',     cls: 'c-orange', order: 1 },
+  muy_alta: { label: 'Muy alta', cls: 'c-crimson', order: 0 }, // rojo más oscuro
+  alta:     { label: 'Alta',     cls: 'c-red',     order: 1 },
   media:    { label: 'Media',    cls: 'c-yellow', order: 2 },
   baja:     { label: 'Baja',     cls: 'c-green',  order: 3 },
 };
@@ -371,7 +371,7 @@ function cardMeta(t, g) {
 }
 
 // Color de la tarjeta: el de su prioridad al agrupar por Prioridad; el de su estado en los demás casos
-const PRIORITY_CARD = { muy_alta: 'st-todo', alta: 'st-orange', media: 'st-wait', baja: 'st-done' };
+const PRIORITY_CARD = { muy_alta: 'st-crimson', alta: 'st-todo', media: 'st-wait', baja: 'st-done' };
 const cardColor = (t, g) => (g === 'priority' ? PRIORITY_CARD[t.priority || DEFAULT_PRIORITY] : `st-${t.status}`);
 
 // Columnas en el orden que eligió el usuario (las nuevas, como una persona recién creada, van al final)

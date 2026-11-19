@@ -29,6 +29,7 @@
   --yellow: #B98410;  --yellow-tag: #8F6E20; --yellow-ink: #F2F2F0; --yellow-card: #775B1B; --yellow-card-h: #846319; --yellow-lane: #232D2C; --yellow-edge: #966F16;
   --green: #1E9E5A;   --green-tag: #228054; --green-ink: #F2F2F0; --green-card: #1D6A46; --green-card-h: #1D744A; --green-lane: #113035; --green-edge: #1E8350;
   --orange: #D9692A; --orange-tag: #A55B33; --orange-ink: #F2F2F0; --orange-card: #8A4C2A; --orange-card-h: #99512A; --orange-edge: #AF5A2A;
+  --crimson: #A3291F; --crimson-tag: #7F2E2B; --crimson-ink: #F2F2F0; --crimson-card: #6A2624; --crimson-card-h: #752723; --crimson-edge: #852822;
   --gray-tag: #22405A; --gray-ink: #DCE2E7;
   --scrim: rgba(3, 9, 13, .72);
   --shadow-overlay: 0 0 0 1px #22405A, 0 8px 16px rgba(0,0,0,.35), 0 24px 48px rgba(0,0,0,.4);
@@ -813,3 +814,7 @@ h1#page-title[contenteditable="plaintext-only"] { box-shadow: inset 0 -2px 0 var
 /* Bitácora dentro del panel de la tarea */
 #task-log .log-time { width: 84px; }
 #task-log .log-row:last-child { border-bottom: none; }
+.c-crimson { background: var(--crimson-tag); color: var(--crimson-ink); } .c-crimson .dot { background: var(--crimson); }
+.card.st-crimson { background: var(--crimson-card); box-shadow: inset 0 0 0 1px var(--crimson-edge); }
+.card.st-crimson:hover { background: var(--crimson-card-h); }
+.card.st-crimson .card-meta { color: #D0D6DB; }
