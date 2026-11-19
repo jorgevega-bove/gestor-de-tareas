@@ -22,12 +22,12 @@
   --danger: #F07A70;      /* --bove-off aclarado para leerse sobre oscuro */
   --danger-solid: #C0392B;/* --bove-off */
   --danger-bg: #2E1D21;
-  /* Estados: colores sólidos (sin mezclar con el fondo) y luminosos, con texto blanco.
-     Basados en los funcionales de BOVE (off · acento · warn · yes). */
-  --red: #D9473C;     --red-tag: #D9473C; --red-ink: #FFFFFF; --red-card: #3F303C; --red-card-h: #4E333C; --red-lane: #272631; --red-edge: #803A3C;
-  --blue: #12968D;    --blue-tag: #12968D; --blue-ink: #FFFFFF; --blue-card: #13424E; --blue-card-h: #134A54; --blue-lane: #0F2F3B; --blue-edge: #126569;
-  --yellow: #B98410;  --yellow-tag: #B98410; --yellow-ink: #FFFFFF; --yellow-card: #383E32; --yellow-card-h: #45452F; --yellow-lane: #232D2C; --yellow-edge: #6E5C24;
-  --green: #1E9E5A;   --green-tag: #1E9E5A; --green-ink: #FFFFFF; --green-card: #154443; --green-card-h: #164D45; --green-lane: #113035; --green-edge: #196A4C;
+  /* Estados: colores sólidos con texto claro; las etiquetas usan una versión algo más sobria
+     (70% del color + 30% gris pizarra) para que no resalten de más. Basados en los funcionales de BOVE. */
+  --red: #D9473C;     --red-tag: #A5433F; --red-ink: #F2F2F0; --red-card: #3F303C; --red-card-h: #4E333C; --red-lane: #272631; --red-edge: #803A3C;
+  --blue: #12968D;    --blue-tag: #1A7A78; --blue-ink: #F2F2F0; --blue-card: #13424E; --blue-card-h: #134A54; --blue-lane: #0F2F3B; --blue-edge: #126569;
+  --yellow: #B98410;  --yellow-tag: #8F6E20; --yellow-ink: #F2F2F0; --yellow-card: #383E32; --yellow-card-h: #45452F; --yellow-lane: #232D2C; --yellow-edge: #6E5C24;
+  --green: #1E9E5A;   --green-tag: #228054; --green-ink: #F2F2F0; --green-card: #154443; --green-card-h: #164D45; --green-lane: #113035; --green-edge: #196A4C;
   --gray-tag: #22405A; --gray-ink: #DCE2E7;
   --scrim: rgba(3, 9, 13, .72);
   --shadow-overlay: 0 0 0 1px #22405A, 0 8px 16px rgba(0,0,0,.35), 0 24px 48px rgba(0,0,0,.4);
