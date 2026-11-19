@@ -752,6 +752,7 @@ async function openTask(id, { back = false } = {}) {
   }
   state.openId = id;
   state.addingTime = false;
+  Api.setPresenceTask(id);
   [state.comments, state.attachments] = await Promise.all([Api.listComments(id), Api.listAttachments(id)]);
   state.comments.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id);
   $('#overlay').classList.add('open');
@@ -763,6 +764,7 @@ async function openTask(id, { back = false } = {}) {
 
 function closeTask() {
   panelHistory.length = 0;
+  Api.setPresenceTask(null);
   $('#overlay').classList.remove('open');
   closePopover();
   state.openId = null;
@@ -2526,6 +2528,19 @@ async function sharedSignIn() {
 
 // Recarga los datos cuando otra persona cambia algo (si no estás escribiendo en ese momento)
 let remoteTimer;
+/* ---------- Presencia: aviso mientras otra persona tiene abierta la misma tarea ---------- */
+let presenceList = [];
+function renderPresence() {
+  const el = $('#presence-note');
+  const names = [...new Set(presenceList
+    .filter((x) => state.openId && x.task === state.openId && x.user && x.user !== CURRENT_USER)
+    .map((x) => userName(x.user) || 'Otra persona'))];
+  el.hidden = !names.length;
+  if (!names.length) return;
+  const who = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}`;
+  el.innerHTML = `<span class="dot"></span>${esc(who)} también ${names.length === 1 ? 'está' : 'están'} en esta tarea`;
+}
+
 async function refreshFromServer() {
   clearTimeout(remoteTimer);
   const el = document.activeElement;
@@ -2547,6 +2562,7 @@ window.addEventListener('unhandledrejection', (e) => {
   try {
     if (SHARED()) await sharedSignIn();
     Api.currentUser = CURRENT_USER;
+    Api.watchPresence((list) => { presenceList = list; renderPresence(); });
     await Api.ensureSeed(SEED);
     await loadPeople();
     state.projects = await Api.listProjects();

@@ -174,6 +174,9 @@ const projName = async (id) => ((await LocalDB.get('projects', id)) || {}).name 
 
 // `let` (no `const`) para que js/db.supabase.js pueda reemplazarla en modo compartido
 let Api = {
+  // Presencia (solo en modo compartido; en local no hay otras personas)
+  watchPresence() {},
+  async setPresenceTask() {},
   mode: 'local',
   supportsUndo: true,
 

@@ -257,6 +257,10 @@
     notify(); // comentarios y adjuntos se consultan solo para la tarea abierta
   }
 
+  const presence = {
+    key: Math.random().toString(36).slice(2), ch: null, cb: null, task: null,
+    async track() { if (this.ch) try { await this.ch.track({ user: SupaApi.currentUser, task: this.task }); } catch {} },
+  };
   const SupaApi = {
     mode: 'supabase',
     supportsUndo: false,
@@ -313,6 +317,18 @@
       }
       ch.subscribe();
     },
+
+    // Presencia: qué tarea tiene abierta cada pestaña (para avisar si dos personas están en la misma)
+    watchPresence(cb) {
+      presence.cb = cb;
+      presence.ch = sb.channel('presencia', { config: { presence: { key: presence.key } } });
+      presence.ch.on('presence', { event: 'sync' }, () => {
+        const list = Object.entries(presence.ch.presenceState()).map(([key, metas]) => ({ key, ...(metas[metas.length - 1] || {}) }));
+        if (presence.cb) presence.cb(list.filter((x) => x.key !== presence.key));
+      });
+      presence.ch.subscribe(async (status) => { if (status === 'SUBSCRIBED') await presence.track(); });
+    },
+    async setPresenceTask(id) { presence.task = id ?? null; await presence.track(); },
 
     /* ---------- Sin equivalente en modo compartido ---------- */
     async ensureSeed() {},
