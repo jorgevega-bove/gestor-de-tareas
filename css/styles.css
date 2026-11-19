@@ -857,3 +857,72 @@ td.c-title .lock { margin-left: -2px; }
 .desc-conflict summary:hover { color: var(--text); }
 .dc-theirs { margin-top: 6px; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; white-space: pre-wrap; max-height: 180px; overflow: auto; color: var(--text); }
 .dc-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ============================================================
+ *  Celular (pantalla angosta, o teléfono en horizontal)
+ * ============================================================ */
+.m-header { display: none; }
+@media (max-width: 900px), (max-height: 520px) and (pointer: coarse) {
+  body { flex-direction: column; height: 100dvh; }
+  .m-header {
+    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    height: 52px; padding: 0 8px 0 16px; background: var(--sidebar); border-bottom: 1px solid var(--border);
+    position: relative; z-index: 30;
+  }
+  .m-logo { height: 15px; display: block; }
+  .m-menu { width: 40px; height: 40px; border: none; background: none; color: var(--text); border-radius: 8px; display: grid; place-items: center; cursor: pointer; }
+  .m-menu:active { background: var(--hover); }
+  .m-menu svg { width: 22px; height: 22px; }
+  .m-menu .ico-close, .menu-open .m-menu .ico-open { display: none; }
+  .menu-open .m-menu .ico-close { display: block; }
+
+  /* Menú = barra lateral a pantalla completa, bajo la barra superior */
+  .sidebar { display: none; }
+  .menu-open .sidebar {
+    display: flex; position: fixed; top: 52px; left: 0; right: 0; bottom: 0; width: auto; height: auto;
+    z-index: 25; border-right: none; padding: 8px 12px calc(12px + env(safe-area-inset-bottom));
+    overflow-y: auto;
+  }
+  .sidebar .ws { display: none; } /* el logo ya está en la barra superior */
+  .menu-open .side-item, .menu-open .sec-h { font-size: 16px; }
+  .menu-open .side-item { padding: 9px 10px; }
+  .menu-open .proj-archive { opacity: 1; width: 32px; height: 32px; }
+  .proj-search { height: 40px; }
+  .proj-search input { font-size: 16px; } /* 16px evita el zoom automático en iPhone */
+
+  main { height: auto; flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
+  .page { padding: 20px 16px 80px; max-width: none; }
+  h1 { font-size: 28px; }
+
+  /* Barra de vistas y herramientas: solo íconos para que quepa */
+  .db-bar { flex-wrap: wrap; row-gap: 4px; }
+  #cols-tool, #group-tool, #search-tool { font-size: 0; gap: 0; padding: 6px 8px; }
+  #cols-tool svg, #group-tool svg, #search-tool svg { width: 17px; height: 17px; }
+  .search-box.open input { width: 120px; font-size: 16px; }
+  .btn-new { padding: 6px 12px; }
+
+  /* Tabla: se desliza en ambas direcciones; la columna Tarea queda fija a la izquierda */
+  .table-wrap { margin-left: 0; overflow: visible; }
+  #table-view { overflow-x: auto; margin: 0 -16px; padding: 0 16px; }
+  /* Sin columna de arrastre/basurero (en el celular se elimina desde el panel); la columna queda en 0 */
+  #colgroup col:first-child { width: 0 !important; }
+  th.gutter, td.gutter { width: 0; min-width: 0; padding: 0; overflow: hidden; }
+  td.gutter > * { display: none !important; }
+  td.c-title, thead th[data-col="title"] { position: sticky; left: -16px; z-index: 2; background: var(--bg); }
+  td.c-title .open { opacity: 1; }
+  .add-row, .count { position: sticky; left: 0; }
+
+  /* Panel de la tarea a pantalla completa (sobre la barra superior: tiene su propio botón de cerrar) */
+  .overlay { padding: 0; z-index: 40; }
+  .modal-bar { position: sticky; top: 0; z-index: 5; background: var(--surface); }
+  .modal { max-width: none; min-height: 100%; border-radius: 0; }
+  .modal-body { padding: 4px 16px 60px; }
+  .props { grid-template-columns: 120px 1fr; }
+  .m-title { font-size: 24px; }
+  textarea, input { font-size: 16px; }
+
+  /* Menús y avisos dentro de la pantalla */
+  .popover { min-width: 0 !important; max-width: calc(100vw - 16px) !important; z-index: 45; }
+  .lightbox { z-index: 46; }
+  .presence-note { font-size: 12px; }
+}

@@ -89,6 +89,8 @@ const prefs = (() => {
 // Usuario actual. En modo local es Jorge; en modo compartido (Supabase) es la persona vinculada a la cuenta.
 let CURRENT_USER = 'jorge';
 const SHARED = () => Api.mode === 'supabase';
+// Misma condición que en styles.css (pantalla angosta, o teléfono en horizontal)
+const MOBILE = matchMedia('(max-width: 900px), (max-height: 520px) and (pointer: coarse)');
 const UNDO_HINT = () => (Api.supportsUndo ? ' Puedes deshacerlo con Ctrl/⌘ + Z.' : '');
 delete CURRENT_USER;
 prefs.sort = prefs.sort || { key: null, dir: null };
@@ -449,8 +451,10 @@ async function setStatus(t, status) {
 function renderTableView() {
   const cols = visibleColumns();
   const { key, dir } = prefs.sort;
-  $('#colgroup').innerHTML = `<col style="width:${GUTTER}px">` + cols.map((c) => `<col data-w="${c.key}" style="width:${prefs.widths[c.key]}px">`).join('');
-  $('#task-table').style.width = `${GUTTER + cols.reduce((n, c) => n + prefs.widths[c.key], 0)}px`;
+  // En el celular la columna Tarea (fija a la izquierda) es más angosta, para que se vean las demás
+  const colW = (k) => (k === 'title' && MOBILE.matches ? Math.min(prefs.widths[k], 190) : prefs.widths[k]);
+  $('#colgroup').innerHTML = `<col style="width:${GUTTER}px">` + cols.map((c) => `<col data-w="${c.key}" style="width:${colW(c.key)}px">`).join('');
+  $('#task-table').style.width = `${GUTTER + cols.reduce((n, c) => n + colW(c.key), 0)}px`;
   $('#thead').innerHTML = `<tr><th class="gutter"></th>${cols.map((c) => `
     <th data-head="${c.key}" data-col="${c.key}" ${c.key === PINNED ? 'data-pinned' : 'draggable="true"'} class="${c.key === key ? 'sorted' : ''} ${(prefs.filters[c.key] || []).length ? 'filtered' : ''}" title="Clic para ordenar o filtrar · arrastra para mover">
       <div class="h">${icon(c.icon)}${c.label}<span class="arrow">${(prefs.filters[c.key] || []).length ? `<span class="funnel">${FUNNEL_ICON}</span>` : ''}${c.key === key ? (dir === 'asc' ? '↑' : '↓') : ''}</span></div>
@@ -1199,7 +1203,16 @@ function renderSidebar() {
   document.title = title ? `${title} · BOVE` : 'BOVE';
 }
 
+/* ---------- Celular: el menú (☰) muestra a pantalla completa la barra lateral ---------- */
+MOBILE.addEventListener('change', () => { if (!MOBILE.matches) setMobileMenu(false); renderTable(); });
+function setMobileMenu(open) {
+  document.body.classList.toggle('menu-open', open);
+  $('#m-menu').setAttribute('aria-expanded', String(open));
+  $('#m-menu').setAttribute('aria-label', open ? 'Cerrar menú' : 'Abrir menú');
+}
+
 function selectProject(id) {
+  setMobileMenu(false);
   if (state.openId) closeTask();
   prefs.project = id;
   savePrefs();
@@ -1982,6 +1995,7 @@ document.addEventListener('click', async (e) => {
     toast(projectById(p.id).archived ? `${p.name} archivado` : `${p.name} vuelve a proyectos en curso`);
     return;
   }
+  if (target.closest('#m-menu')) { setMobileMenu(!document.body.classList.contains('menu-open')); return; }
   if (target.closest('[data-show-all]')) { selectProject('all'); return; }
   const pj = target.closest('[data-project]');
   if (pj) { selectProject(Number(pj.dataset.project)); return; }
