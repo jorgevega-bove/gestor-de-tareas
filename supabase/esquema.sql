@@ -24,11 +24,11 @@ create table if not exists public.app_config (
 );
 
 -- Dominio de correo permitido para entrar a la app (sin "@").
--- CAMBIA "empresa.cl" por el dominio real de la empresa antes de ejecutar,
--- o actualízalo después con:  update public.app_config set value = 'dominio.cl' where key = 'dominio_correo';
+-- Dominio de BOVE. Para cambiarlo:
+--   update public.app_config set value = 'dominio.cl' where key = 'dominio_correo';
 -- Si se deja vacío (''), puede entrar cualquier persona que confirme su correo.
 insert into public.app_config (key, value)
-values ('dominio_correo', 'empresa.cl')
+values ('dominio_correo', 'bove.cl')
 on conflict (key) do nothing;
 
 
@@ -235,3 +235,9 @@ end $$;
 
 grant execute on function public.sincronizar_secuencias() to authenticated;
 grant execute on function public.es_usuario_permitido() to authenticated;
+
+-- Las funciones no se pueden llamar sin sesión iniciada
+revoke execute on function public.es_usuario_permitido() from public, anon;
+revoke execute on function public.sincronizar_secuencias() from public, anon;
+grant execute on function public.es_usuario_permitido() to authenticated;
+grant execute on function public.sincronizar_secuencias() to authenticated;

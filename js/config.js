@@ -13,7 +13,8 @@
  * la "service_role key".
  */
 window.APP_CONFIG = {
-  supabaseUrl: '',          // ej. 'https://abcdefghijkl.supabase.co'
-  supabaseAnonKey: '',      // ej. 'eyJhbGciOi...'
-  allowedEmailDomain: '',   // ej. 'empresa.cl' (solo correos de este dominio pueden entrar)
+  // Proyecto de Supabase "bove-backlog" (organización jorgevega-bove)
+  supabaseUrl: 'https://jsbossjcemwvcimnytzn.supabase.co',
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzYm9zc2pjZW13dmNpbW55dHpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUwNTE0NzIsImV4cCI6MjExMDYyNzQ3Mn0.-fOodKG9CkUss428ZLlfV-XyuO3FvTwQD0KwETSyPEQ',
+  allowedEmailDomain: 'bove.cl', // solo correos @bove.cl pueden entrar
 };
