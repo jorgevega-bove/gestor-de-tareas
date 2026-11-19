@@ -776,3 +776,10 @@ h1#page-title[contenteditable="plaintext-only"] { box-shadow: inset 0 -2px 0 var
 #col-guides .col-resize { position: absolute; width: 8px; cursor: col-resize; }
 #col-guides .col-resize::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; background: transparent; transition: background .12s; }
 #col-guides .col-resize:hover::after, #col-guides .col-resize.active::after { background: var(--text-2); }
+
+/* Kanban: mover columnas arrastrando su encabezado */
+.lane-h { cursor: grab; }
+.lane-h:active { cursor: grabbing; }
+.lane.dragging { opacity: .4; }
+.lane.drop-left  { box-shadow: -4px 0 0 -1px var(--text); }
+.lane.drop-right { box-shadow: 4px 0 0 -1px var(--text); }

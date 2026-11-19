@@ -90,6 +90,7 @@ delete CURRENT_USER;
 prefs.sort = prefs.sort || { key: null, dir: null };
 prefs.view = prefs.view || 'table';
 prefs.filters = prefs.filters || {};
+prefs.laneOrder = prefs.laneOrder || {}; // orden de las columnas del Kanban, por propiedad
 // Secciones abiertas en la barra lateral (pueden estar las dos abiertas a la vez)
 if (!Array.isArray(prefs.openSections)) prefs.openSections = prefs.openSection === undefined ? ['active'] : [prefs.openSection].filter(Boolean);
 delete prefs.openSection;
@@ -364,16 +365,24 @@ function cardMeta(t, g) {
 const PRIORITY_CARD = { alta: 'st-todo', media: 'st-wait', baja: 'st-done' };
 const cardColor = (t, g) => (g === 'priority' ? PRIORITY_CARD[t.priority] || '' : `st-${t.status}`);
 
+// Columnas en el orden que eligió el usuario (las nuevas, como una persona recién creada, van al final)
+function orderedLanes(g) {
+  const lanes = boardLanes(g);
+  const saved = prefs.laneOrder[g] || [];
+  const pos = (k) => { const i = saved.indexOf(k); return i === -1 ? saved.length + lanes.findIndex((l) => l[0] === k) : i; };
+  return [...lanes].sort((a, b) => pos(a[0]) - pos(b[0]));
+}
+
 function renderBoard() {
   if (!GROUP_LABEL[prefs.groupBy]) prefs.groupBy = 'status'; // opciones antiguas (Proyecto, Creado por) vuelven a Estado
   const g = prefs.groupBy;
   const list = sortedTasks();
   const readOnly = g === 'created_by';
   $('#group-tool').innerHTML = `${TOGGLE_ICON}Propiedades`;
-  $('#board-view').innerHTML = boardLanes(g).map(([k, head]) => {
+  $('#board-view').innerHTML = orderedLanes(g).map(([k, head]) => {
     const items = list.filter((t) => laneValues(t, g).includes(k));
     return `<div class="lane" data-lane="${esc(k)}">
-      <div class="lane-h">${head}<span class="n">${items.length}</span></div>
+      <div class="lane-h" draggable="true" title="Arrastra para mover la columna">${head}<span class="n">${items.length}</span></div>
       <div class="cards">${items.map((t) => `
         <div class="card ${cardColor(t, g)}" ${readOnly ? '' : 'draggable="true"'} data-open="${t.id}" data-card="${t.id}">
           <div class="card-title">${t.title ? esc(t.title) : '<span class="untitled">Sin título</span>'}</div>
@@ -2135,7 +2144,17 @@ rowsEl.addEventListener('dragend', () => { dragRow = null; clearRowMarks(); });
 
 const board = $('#board-view');
 let dragFromLane = null;
+let dragLane = null;
 board.addEventListener('dragstart', (e) => {
+  // Arrastrar el encabezado mueve la columna completa
+  const h = e.target.closest('.lane-h');
+  if (h) {
+    dragLane = h.closest('[data-lane]');
+    e.dataTransfer.setData('text/x-lane', dragLane.dataset.lane);
+    e.dataTransfer.effectAllowed = 'move';
+    dragLane.classList.add('dragging');
+    return;
+  }
   const c = e.target.closest('[data-card]');
   if (!c) return;
   e.dataTransfer.setData('text/x-task', c.dataset.card);
@@ -2144,7 +2163,35 @@ board.addEventListener('dragstart', (e) => {
   c.classList.add('dragging');
 });
 board.addEventListener('dragend', () => {
-  board.querySelectorAll('.dragging, .drop, .drop-above, .drop-below').forEach((el) => el.classList.remove('dragging', 'drop', 'drop-above', 'drop-below'));
+  dragLane = null;
+  board.querySelectorAll('.dragging, .drop, .drop-above, .drop-below, .drop-left, .drop-right').forEach((el) => el.classList.remove('dragging', 'drop', 'drop-above', 'drop-below', 'drop-left', 'drop-right'));
+});
+// Columna bajo el cursor y si la columna arrastrada queda a su izquierda o a su derecha
+function laneDropTarget(x) {
+  const lanes = [...board.querySelectorAll('[data-lane]')].filter((l) => l !== dragLane);
+  for (const l of lanes) {
+    const r = l.getBoundingClientRect();
+    if (x < r.left + r.width / 2) return { lane: l, after: false };
+  }
+  return lanes.length ? { lane: lanes[lanes.length - 1], after: true } : null;
+}
+board.addEventListener('dragover', (e) => {
+  if (!dragLane || !e.dataTransfer.types.includes('text/x-lane')) return;
+  e.preventDefault();
+  board.querySelectorAll('.drop-left, .drop-right').forEach((el) => el.classList.remove('drop-left', 'drop-right'));
+  const t = laneDropTarget(e.clientX);
+  if (t) t.lane.classList.add(t.after ? 'drop-right' : 'drop-left');
+});
+board.addEventListener('drop', (e) => {
+  if (!dragLane || !e.dataTransfer.types.includes('text/x-lane')) return;
+  e.preventDefault();
+  const t = laneDropTarget(e.clientX);
+  if (!t) return;
+  const keys = [...board.querySelectorAll('[data-lane]')].map((l) => l.dataset.lane).filter((k) => k !== dragLane.dataset.lane);
+  keys.splice(keys.indexOf(t.lane.dataset.lane) + (t.after ? 1 : 0), 0, dragLane.dataset.lane);
+  prefs.laneOrder[prefs.groupBy || 'status'] = keys;
+  savePrefs();
+  renderBoard();
 });
 // Tarjeta bajo el cursor dentro de una columna, y si se suelta antes o después de ella
 function cardDropTarget(lane, y) {
