@@ -783,3 +783,6 @@ h1#page-title[contenteditable="plaintext-only"] { box-shadow: inset 0 -2px 0 var
 .lane.dragging { opacity: .4; }
 .lane.drop-left  { box-shadow: -4px 0 0 -1px var(--text); }
 .lane.drop-right { box-shadow: 4px 0 0 -1px var(--text); }
+
+/* Asa para arrastrar filas: oculta por ahora (la función sigue en el código, se puede reactivar quitando esta regla) */
+.row-drag { display: none !important; }
