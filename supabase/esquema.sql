@@ -269,3 +269,19 @@ $$;
 
 revoke execute on function public.solo_correos_bove(jsonb) from public, anon, authenticated;
 grant execute on function public.solo_correos_bove(jsonb) to supabase_auth_admin;
+
+-- ---------------------------------------------------------------------
+-- 8. Permisos de las tablas para usuarios con sesión
+--    (los proyectos nuevos de Supabase no los dan por defecto; RLS sigue
+--    decidiendo qué filas puede ver o cambiar cada uno)
+-- ---------------------------------------------------------------------
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on
+  public.people, public.projects, public.tasks, public.task_assignees,
+  public.task_dependencies, public.comments, public.attachments, public.activity
+  to authenticated;
+grant select on public.app_config to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
+revoke all on all tables in schema public from anon;
+-- TRUNCATE no pasa por RLS: nadie desde la app puede vaciar una tabla completa
+revoke truncate, references, trigger on all tables in schema public from authenticated;

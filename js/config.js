@@ -17,4 +17,6 @@ window.APP_CONFIG = {
   supabaseUrl: 'https://jsbossjcemwvcimnytzn.supabase.co',
   supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzYm9zc2pjZW13dmNpbW55dHpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUwNTE0NzIsImV4cCI6MjExMDYyNzQ3Mn0.-fOodKG9CkUss428ZLlfV-XyuO3FvTwQD0KwETSyPEQ',
   allowedEmailDomain: 'bove.cl', // solo correos @bove.cl pueden entrar
+  // Entrar con Google en vez de con un enlace por correo (se activa cuando Google esté conectado en Supabase)
+  googleLogin: false,
 };

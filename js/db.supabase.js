@@ -262,6 +262,7 @@
     /* ---------- Sesión ---------- */
     auth: {
       allowedDomain: (cfg.allowedEmailDomain || '').replace(/^@/, '').toLowerCase(),
+      google: !!cfg.googleLogin,
       async email() {
         const { data } = await sb.auth.getSession();
         return data.session ? (data.session.user.email || '').toLowerCase() : null;
