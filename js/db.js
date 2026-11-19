@@ -238,6 +238,10 @@ let Api = {
     return true;
   },
   listActivity: () => LocalDB.all('activity'),
+  // Registros de una tarea: los suyos y los cambios de dependencias de otras tareas que la nombran
+  async listTaskActivity(id) {
+    return (await LocalDB.all('activity')).filter((e) => e.entity === 'task' && (Number(e.entity_id) === id || e.field === 'depends_on'));
+  },
 
   async resetAll(seed) {
     for (const s of ['people', 'projects', 'tasks', 'comments', 'attachments', 'meta', 'activity']) await LocalDB.clear(s);

@@ -809,3 +809,7 @@ h1#page-title[contenteditable="plaintext-only"] { box-shadow: inset 0 -2px 0 var
 .log-proj-menu .chk { color: var(--text); }
 .log-proj-sep { font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); padding: 8px 8px 4px; }
 .log-proj-menu .nothing { padding: 8px; font-size: 13px; color: var(--text-3); }
+
+/* Bitácora dentro del panel de la tarea */
+#task-log .log-time { width: 84px; }
+#task-log .log-row:last-child { border-bottom: none; }

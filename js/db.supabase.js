@@ -303,6 +303,14 @@
       return rows.map(mapActivity);
     },
 
+    // Registros de una tarea: los suyos y los cambios de dependencias (pueden nombrarla desde otra tarea)
+    async listTaskActivity(id) {
+      await flushNow();
+      const rows = ok(await sb.from('activity').select('*').eq('entity', 'task')
+        .or(`entity_id.eq.${id},field.eq.depends_on`).order('id', { ascending: false }).limit(500));
+      return rows.map(mapActivity);
+    },
+
     /* ---------- Personas ---------- */
     async listPeople() {
       await loadAll();

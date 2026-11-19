@@ -610,7 +610,9 @@ function renderPanel() {
         <button class="x" data-del-att="${a.id}" title="Eliminar">×</button></a>`;
     }).join('')}</div>` : '<div class="nothing">Sin archivos</div>'}`, `<label class="add attach-btn" title="Adjuntar archivos">${CLIP_ICON}<input type="file" id="up-file" multiple hidden></label>`)}
 
+    <div id="task-log">${state.taskLog && state.taskLog.id === t.id ? state.taskLog.html : ''}</div>
   `;
+  loadTaskLog(t.id);
 
   // Valores de texto (se asignan por JS para no tener problemas con caracteres especiales)
   $('#f-title').value = t.title;
@@ -618,6 +620,30 @@ function renderPanel() {
   autoGrow($('#f-title'));
   autoGrow($('#f-desc'));
   overlay.scrollTop = scroll;
+}
+
+// Bitácora dentro del panel: las últimas 10 modificaciones de la tarea (sin contar su creación).
+// Si B pasa a depender de A (o deja de hacerlo), el cambio aparece en ambas.
+const TASK_LOG_MAX = 10;
+function taskLogEntries(all, id) {
+  const named = (e) => {
+    const a = (e.from || []).map(Number), b = (e.to || []).map(Number);
+    return a.includes(id) !== b.includes(id);
+  };
+  return all.filter((e) => e.entity === 'task' && (Number(e.entity_id) === id
+      ? e.action !== 'create'
+      : e.field === 'depends_on' && named(e)))
+    .sort((a, b) => b.ts - a.ts || b.id - a.id).slice(0, TASK_LOG_MAX);
+}
+async function loadTaskLog(id) {
+  const list = taskLogEntries(await Api.listTaskActivity(id), id);
+  const html = list.length ? '<div class="divider"></div>' + psec('log', 'Bitácora', list.map((e) => {
+    const who = e.user === 'auto' ? '<span class="tag c-gray log-auto">Automático</span>' : `<span class="tag c-gray">${esc(userName(e.user) || e.user || '—')}</span>`;
+    return `<div class="log-row"><span class="log-time">${e.at.slice(8, 10)}/${e.at.slice(5, 7)} ${e.at.slice(11, 16)}</span><div class="log-text">${who} ${activityText(e)}</div></div>`;
+  }).join('')) : '';
+  state.taskLog = { id, html };
+  const slot = $('#task-log');
+  if (state.openId === id && slot && slot.innerHTML !== html) slot.innerHTML = html;
 }
 
 function autoGrow(el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; }
