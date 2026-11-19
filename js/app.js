@@ -2319,20 +2319,20 @@ function showLogin(msg = '') {
     const dom = Api.auth.allowedDomain;
     const step1 = () => {
       loginCard(`<h2>Entrar a BOVE</h2>
-        <p>${msg ? esc(msg) : `Ingresa tu correo${dom ? ` de @${esc(dom)}` : ''} y te enviaremos un código para entrar.`}</p>
+        <p>${msg ? esc(msg) : `Ingresa tu correo${dom ? ` de @${esc(dom)}` : ''} y te enviaremos un enlace para entrar.`}</p>
         <form class="lo-form" id="lo-form1"><input type="email" id="lo-email" placeholder="nombre@${esc(dom || 'empresa.cl')}" required autocomplete="email">
-        <button class="btn-new" type="submit">Enviar código</button></form>`);
+        <button class="btn-new" type="submit">Enviar enlace</button></form>`);
       $('#lo-email').focus();
       $('#lo-form1').onsubmit = async (ev) => {
         ev.preventDefault();
         const email = $('#lo-email').value.trim().toLowerCase();
         if (dom && !email.endsWith('@' + dom)) { toast(`Usa tu correo de @${dom}`); return; }
-        try { await Api.auth.sendCode(email); step2(email); } catch (err) { toast(`No se pudo enviar el código: ${err.message}`); }
+        try { await Api.auth.sendCode(email); step2(email); } catch (err) { toast(`No se pudo enviar el correo: ${err.message}`); }
       };
     };
     const step2 = (email) => {
       loginCard(`<h2>Revisa tu correo</h2>
-        <p>Enviamos un código a <b>${esc(email)}</b>. Escríbelo aquí:</p>
+        <p>Enviamos un correo a <b>${esc(email)}</b>. Abre el enlace que trae para entrar. Si el correo trae un código, también puedes escribirlo aquí:</p>
         <form class="lo-form" id="lo-form2"><input id="lo-code" inputmode="numeric" autocomplete="one-time-code" placeholder="Código" required>
         <button class="btn-new" type="submit">Entrar</button></form>
         <p><a href="#" id="lo-back" class="lo-link">Usar otro correo</a></p>`);
@@ -2344,6 +2344,8 @@ function showLogin(msg = '') {
         catch (err) { toast(`Código incorrecto o vencido: ${err.message}`); }
       };
     };
+    // Si se entra con el enlace del correo (en esta u otra pestaña), se continúa solo
+    const stop = Api.auth.onSignIn ? Api.auth.onSignIn(() => { stop && stop(); $('#logged-out').hidden = true; resolve(); }) : null;
     step1();
   });
 }

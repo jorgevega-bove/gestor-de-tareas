@@ -266,7 +266,16 @@
         const { data } = await sb.auth.getSession();
         return data.session ? (data.session.user.email || '').toLowerCase() : null;
       },
-      async sendCode(email) { ok(await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } })); },
+      // Envía un correo para entrar: trae un enlace (y un código si la plantilla lo incluye)
+      async sendCode(email) {
+        const back = location.origin + location.pathname;
+        ok(await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: back } }));
+      },
+      // Avisa cuando se inicia sesión (por ejemplo, al abrir el enlace del correo en otra pestaña)
+      onSignIn(cb) {
+        const { data } = sb.auth.onAuthStateChange((ev, session) => { if (ev === 'SIGNED_IN' && session) cb(); });
+        return () => data.subscription.unsubscribe();
+      },
       async verifyCode(email, token) { ok(await sb.auth.verifyOtp({ email, token, type: 'email' })); },
       async signOut() { await flushNow(); await sb.auth.signOut(); },
     },
