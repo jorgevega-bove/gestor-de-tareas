@@ -858,6 +858,12 @@ td.c-title .lock { margin-left: -2px; }
 .dc-theirs { margin-top: 6px; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; white-space: pre-wrap; max-height: 180px; overflow: auto; color: var(--text); }
 .dc-actions { display: flex; gap: 8px; justify-content: flex-end; }
 
+/* ---------- Tabla: la columna Tarea (y el asa/basurero a su izquierda) queda fija al desplazarse de lado ---------- */
+th.gutter, td.gutter { position: sticky; left: 0; z-index: 3; background: var(--bg) !important; }
+th[data-col="title"], td.c-title { position: sticky; left: 56px; z-index: 2; }
+td.c-title, th[data-col="title"]:not(:hover) { background: var(--bg); }
+th[data-col="title"], tbody tr:not(.selected) td.c-title { box-shadow: inset -1px 0 0 var(--border); }
+
 /* ============================================================
  *  Celular (pantalla angosta, o teléfono en horizontal)
  * ============================================================ */

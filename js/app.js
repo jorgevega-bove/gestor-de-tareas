@@ -272,7 +272,7 @@ const inView = (t) => (isAllView() ? !(projectById(t.project_id) || {}).archived
 const isForcedColumn = (key) => isAllView() && key === 'project_id';
 
 // La columna ID, si está visible, va siempre primero (a la izquierda) y no se puede mover
-const PINNED = 'code';
+const PINNED = 'title'; // la columna Tarea va siempre primera y queda fija al desplazarse de lado
 function visibleColumns() {
   const cols = orderedColumns().filter((c) => c.fixed || isForcedColumn(c.key) || !prefs.hidden.includes(c.key));
   const pinned = cols.filter((c) => c.key === PINNED);
@@ -479,7 +479,7 @@ function placeResizeGuides() {
   const wrap = $('.table-wrap'), table = $('#task-table');
   let box = $('#col-guides');
   if (!box) { box = document.createElement('div'); box.id = 'col-guides'; wrap.appendChild(box); }
-  box.innerHTML = [...$('#thead').querySelectorAll('th[data-col]:not([data-pinned])')].map((th) =>
+  box.innerHTML = [...$('#thead').querySelectorAll('th[data-col]:not([data-col="code"])')].map((th) =>
     `<span class="col-resize" data-resize="${th.dataset.col}" title="Arrastra para cambiar el ancho · doble clic para restablecer"
       style="left:${table.offsetLeft + th.offsetLeft + th.offsetWidth - 4}px;top:${table.offsetTop}px;height:${table.offsetHeight}px"></span>`).join('');
 }
