@@ -1170,7 +1170,7 @@ function openShortcuts() {
 /* ---------- Bitácora ---------- */
 const FIELD_LABEL = { title: 'el título', status: 'el estado', priority: 'la prioridad', assignees: 'los responsables',
   project_id: 'el proyecto', due_at: 'la fecha límite', depends_on: 'las dependencias', description: 'la descripción' };
-let activityFilter = 'all';
+let activityProject = 'all'; // bitácora: 'all' o el id del proyecto elegido
 
 function fmtValue(field, v, entry) {
   const none = '<span class="empty">Sin definir</span>';
@@ -1235,10 +1235,23 @@ function dayLabel(iso) {
   return `${dd}/${mm}/${yy}`;
 }
 
+// Proyecto al que pertenece un registro de la bitácora (null si no es de ningún proyecto)
+function activityProjectId(e) {
+  if (e.entity === 'project') return Number(e.entity_id);
+  if (e.entity !== 'task') return null;
+  const t = byId(Number(e.entity_id));
+  if (t) return t.project_id;
+  // Tarea ya eliminada: al crearla y al borrarla se guardó el nombre del proyecto
+  const p = (e.action === 'create' || e.action === 'delete') && e.extra && state.projects.find((x) => x.name === e.extra);
+  return p ? p.id : null;
+}
+
 async function openActivity() {
   const all = (await Api.listActivity()).sort((a, b) => b.ts - a.ts || b.id - a.id);
-  const render = () => {
-    const list = all.filter((e) => activityFilter === 'all' || e.entity === activityFilter).slice(0, 500);
+  if (activityProject !== 'all' && !projectById(activityProject)) activityProject = 'all';
+  const label = () => (activityProject === 'all' ? 'Todos los proyectos' : projectName(activityProject));
+  const renderList = () => {
+    const list = all.filter((e) => activityProject === 'all' || activityProjectId(e) === activityProject).slice(0, 500);
     let html = '', lastDay = '';
     for (const e of list) {
       const day = dayLabel(e.at);
@@ -1246,17 +1259,53 @@ async function openActivity() {
       const who = e.user === 'auto' ? '<span class="tag c-gray log-auto">Automático</span>' : `<span class="tag c-gray">${esc(userName(e.user) || e.user || '—')}</span>`;
       html += `<div class="log-row"><span class="log-time">${e.at.slice(11, 16)}</span><div class="log-text">${who} ${activityText(e)}</div></div>`;
     }
-    const tabs = [['all', 'Todo'], ['task', 'Tareas'], ['project', 'Proyectos']].map(([k, l]) =>
-      `<button class="log-tab ${activityFilter === k ? 'on' : ''}" data-log-filter="${k}">${l}</button>`).join('');
-    $('#dialog-body .dlg-content').innerHTML = `<div class="log-tabs">${tabs}</div>
-      <div class="log-list">${html || '<div class="nothing">Aún no hay actividad registrada.</div>'}</div>`;
+    $('#log-list').innerHTML = html || `<div class="nothing">${activityProject === 'all' ? 'Aún no hay actividad registrada.' : 'Este proyecto aún no tiene actividad.'}</div>`;
+    $('#log-proj-btn .lbl').textContent = label();
+  };
+  // Opciones del selector: todos, luego proyectos en curso y archivados, filtrados por el buscador
+  const renderOpts = (q = '') => {
+    const match = (p) => norm(p.name).includes(norm(q.trim()));
+    const opt = (v, text, extra = '') => `<div class="opt" data-log-proj="${v}"><span>${esc(text)}${extra}</span><span class="chk">${String(activityProject) === String(v) ? '✓' : ''}</span></div>`;
+    const active = state.projects.filter((p) => !p.archived && match(p));
+    const archived = state.projects.filter((p) => p.archived && match(p));
+    $('#log-proj-opts').innerHTML =
+      (!q.trim() ? opt('all', 'Todos los proyectos') : '') +
+      active.map((p) => opt(p.id, p.name)).join('') +
+      (archived.length ? '<div class="log-proj-sep">Archivados</div>' + archived.map((p) => opt(p.id, p.name)).join('') : '') +
+      (!active.length && !archived.length ? '<div class="nothing">Sin resultados</div>' : '');
+  };
+  const toggleMenu = (open) => {
+    const m = $('#log-proj-menu');
+    m.hidden = !open;
+    if (open) { $('#log-proj-q').value = ''; renderOpts(); $('#log-proj-q').focus(); }
   };
   openDialog('Bitácora', '');
   $('#dialog-body').classList.add('wide');
-  render();
+  $('#dialog-body .dlg-content').innerHTML = `
+    <div class="log-proj">
+      <button class="log-proj-btn" id="log-proj-btn"><span class="lbl"></span><svg class="i line-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4"/></svg></button>
+      <div class="log-proj-menu" id="log-proj-menu" hidden>
+        <input class="search" id="log-proj-q" placeholder="Buscar proyecto…" autocomplete="off">
+        <div class="opts" id="log-proj-opts"></div>
+      </div>
+    </div>
+    <div class="log-list" id="log-list"></div>`;
+  renderList();
+  $('#log-proj-q').oninput = () => renderOpts($('#log-proj-q').value);
+  $('#log-proj-q').onkeydown = (ev) => {
+    if (ev.key === 'Escape') { ev.stopPropagation(); toggleMenu(false); }
+    if (ev.key === 'Enter') { const first = $('#log-proj-opts [data-log-proj]'); if (first) first.click(); }
+  };
   $('#dialog-body').onclick = (ev) => {
-    const f = ev.target.closest('[data-log-filter]');
-    if (f) { activityFilter = f.dataset.logFilter; render(); }
+    if (ev.target.closest('#log-proj-btn')) { toggleMenu($('#log-proj-menu').hidden); return; }
+    const o = ev.target.closest('[data-log-proj]');
+    if (o) {
+      activityProject = o.dataset.logProj === 'all' ? 'all' : Number(o.dataset.logProj);
+      toggleMenu(false);
+      renderList();
+      return;
+    }
+    if (!ev.target.closest('#log-proj-menu')) toggleMenu(false);
   };
 }
 

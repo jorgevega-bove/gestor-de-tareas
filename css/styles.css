@@ -791,3 +791,21 @@ h1#page-title[contenteditable="plaintext-only"] { box-shadow: inset 0 -2px 0 var
 .card.st-orange { background: var(--orange-card); box-shadow: inset 0 0 0 1px var(--orange-edge); }
 .card.st-orange:hover { background: var(--orange-card-h); }
 .card.st-orange .card-meta { color: #D0D6DB; }
+
+/* Bitácora: selector de proyecto con buscador */
+.log-proj { position: relative; margin-bottom: 8px; display: inline-block; }
+.log-proj-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  border-radius: var(--radius-control); padding: 5px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.log-proj-btn:hover { background: var(--hover); }
+.log-proj-btn .i { width: 14px; height: 14px; color: var(--text-2); }
+.log-proj-menu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 5; width: 280px; background: var(--raised); border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-overlay); padding: 6px; }
+.log-proj-menu .search { width: 100%; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: var(--radius-control);
+  padding: 6px 8px; font: inherit; font-size: 13px; outline: none; margin-bottom: 4px; }
+.log-proj-menu .search:focus { border-color: var(--text-2); }
+.log-proj-menu .opts { max-height: 280px; overflow-y: auto; }
+.log-proj-menu .opt { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border-radius: var(--radius-control); cursor: pointer; font-size: 13px; }
+.log-proj-menu .opt:hover { background: var(--hover-2); }
+.log-proj-menu .chk { color: var(--text); }
+.log-proj-sep { font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); padding: 8px 8px 4px; }
+.log-proj-menu .nothing { padding: 8px; font-size: 13px; color: var(--text-3); }
