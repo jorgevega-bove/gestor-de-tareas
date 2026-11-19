@@ -1,20 +1,20 @@
 :root {
   /* Sistema de diseño BOVE · plano oscuro (tokens de bove-design-system/tokens/colors.css) */
-  --bg: #09161F;          /* --bove-frame: el suelo más profundo */
-  --sidebar: #0F2130;     /* --bove-readout */
-  --surface: #0F2130;     /* paneles, menús, tarjetas */
-  --surface-2: #0B1B27;   /* campos, hundido */
-  --raised: #0D2B3E;      /* --bove-navy: menús sobre paneles */
+  --bg: #0F2130;          /* --bove-frame: el suelo más profundo */
+  --sidebar: #132A3C;     /* --bove-readout */
+  --surface: #132A3C;     /* paneles, menús, tarjetas */
+  --surface-2: #0D1D2A;   /* campos, hundido */
+  --raised: #183349;      /* --bove-navy: menús sobre paneles */
   --text: #F2F2F0;        /* --bove-hi */
   --text-2: #9EA2A8;      /* --bove-body-2 */
-  --text-3: #6F767D;      /* rótulos y textos de ayuda */
-  --border: #1C3242;      /* filete capilar sobre oscuro */
-  --line-strong: #2E4A5E; /* filete de énfasis bajo el encabezado de tabla */
-  --hover: #132A3B;       /* interacción acromática (navy) */
-  --hover-2: #1A3548;
-  --row-hover: #0D1F2C;
-  --cell-hover: #152E40;
-  --selected: #0E2A33;
+  --text-3: #7A8A99;      /* rótulos y textos de ayuda */
+  --border: #22405A;      /* filete capilar sobre oscuro */
+  --line-strong: #36586F; /* filete de énfasis bajo el encabezado de tabla */
+  --hover: #1A3850;       /* interacción acromática (navy) */
+  --hover-2: #21445E;
+  --row-hover: #13293B;
+  --cell-hover: #1C3B52;
+  --selected: #163B4A;
   --accent: #14A89F;      /* --bove-accent-dim: teal sobre oscuro */
   --on-solid: #09161F;
   --solid: #F2F2F0;       /* botón principal: claro sobre oscuro, sin acento */
@@ -22,15 +22,15 @@
   --danger: #F07A70;      /* --bove-off aclarado para leerse sobre oscuro */
   --danger-solid: #C0392B;/* --bove-off */
   --danger-bg: #2E1D21;
-  /* Estados: funcionales de BOVE (off · acento · warn · yes) en su versión para fondo oscuro,
-     más brillantes, como hace la marca con el teal (#0B7A75 sobre claro → #14A89F sobre oscuro) */
-  --red: #EF5A4E;     --red-tag: #5C2E30; --red-ink: #FFFFFF; --red-card: #372428; --red-card-h: #47282C; --red-lane: #1E1C23; --red-edge: #7C3836;
-  --blue: #1FC4B9;    --blue-tag: #115556; --blue-ink: #FFFFFF; --blue-card: #0D393E; --blue-card-h: #0F4549; --blue-lane: #0B262D; --blue-edge: #146D6C;
-  --yellow: #EBC43F;  --yellow-tag: #5A552B; --yellow-ink: #FFFFFF; --yellow-card: #363925; --yellow-card-h: #464528; --yellow-lane: #1D2622; --yellow-edge: #7A6D2F;
-  --green: #3CCB7A;   --green-tag: #1B5740; --green-ink: #FFFFFF; --green-card: #133A31; --green-card-h: #174738; --green-lane: #0E2627; --green-edge: #22704C;
-  --gray-tag: #1A3040; --gray-ink: #C9CDD1;
+  /* Estados: colores sólidos (sin mezclar con el fondo) y luminosos, con texto blanco.
+     Basados en los funcionales de BOVE (off · acento · warn · yes). */
+  --red: #D9473C;     --red-tag: #D9473C; --red-ink: #FFFFFF; --red-card: #3F303C; --red-card-h: #4E333C; --red-lane: #272631; --red-edge: #803A3C;
+  --blue: #12968D;    --blue-tag: #12968D; --blue-ink: #FFFFFF; --blue-card: #13424E; --blue-card-h: #134A54; --blue-lane: #0F2F3B; --blue-edge: #126569;
+  --yellow: #B98410;  --yellow-tag: #B98410; --yellow-ink: #FFFFFF; --yellow-card: #383E32; --yellow-card-h: #45452F; --yellow-lane: #232D2C; --yellow-edge: #6E5C24;
+  --green: #1E9E5A;   --green-tag: #1E9E5A; --green-ink: #FFFFFF; --green-card: #154443; --green-card-h: #164D45; --green-lane: #113035; --green-edge: #196A4C;
+  --gray-tag: #22405A; --gray-ink: #DCE2E7;
   --scrim: rgba(3, 9, 13, .72);
-  --shadow-overlay: 0 0 0 1px #1C3242, 0 8px 16px rgba(0,0,0,.35), 0 24px 48px rgba(0,0,0,.4);
+  --shadow-overlay: 0 0 0 1px #22405A, 0 8px 16px rgba(0,0,0,.35), 0 24px 48px rgba(0,0,0,.4);
   --font-sans: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "Commit Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --radius-control: 6px;
@@ -759,3 +759,4 @@ h1#page-title[contenteditable="plaintext-only"] { box-shadow: inset 0 -2px 0 var
 /* Las marcas de arrastre van sobre el filete de estado */
 .card.drop-above { box-shadow: 0 -3px 0 var(--text), 0 0 0 1px var(--border) !important; }
 .card.drop-below { box-shadow: 0 3px 0 var(--text), 0 0 0 1px var(--border) !important; }
+.pill, .dep.tag { font-weight: 500; }
