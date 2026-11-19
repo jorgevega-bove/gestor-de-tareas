@@ -11,10 +11,15 @@
 <!-- Barra superior (solo en celular): logo y botón de menú -->
 <header class="m-header">
   <img class="m-logo" src="assets/bove-white.svg" alt="BOVE">
-  <button class="m-menu" id="m-menu" aria-label="Abrir menú" aria-expanded="false">
+  <div class="m-actions">
+  <button class="m-btn" id="m-account" aria-label="Cuenta" title="Cuenta">
+    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6zm0 7.5c3 0 5.5 1.5 5.5 3.5V14h-11v-1c0-2 2.5-3.5 5.5-3.5z"/></svg>
+  </button>
+  <button class="m-btn m-menu" id="m-menu" aria-label="Abrir menú" aria-expanded="false">
     <svg class="ico-open" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 5.5h14M3 10h14M3 14.5h14"/></svg>
     <svg class="ico-close" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>
   </button>
+  </div>
 </header>
 
 <aside class="sidebar">

@@ -870,9 +870,12 @@ td.c-title .lock { margin-left: -2px; }
     position: relative; z-index: 30;
   }
   .m-logo { height: 15px; display: block; }
-  .m-menu { width: 40px; height: 40px; border: none; background: none; color: var(--text); border-radius: 8px; display: grid; place-items: center; cursor: pointer; }
-  .m-menu:active { background: var(--hover); }
-  .m-menu svg { width: 22px; height: 22px; }
+  .m-actions { display: flex; align-items: center; gap: 2px; }
+  .m-btn { width: 40px; height: 40px; border: none; background: none; color: var(--text); border-radius: 8px; display: grid; place-items: center; cursor: pointer; }
+  .m-btn:active { background: var(--hover); }
+  .m-btn svg { width: 22px; height: 22px; }
+  #m-account { color: var(--text-2); }
+  #m-account svg { width: 19px; height: 19px; }
   .m-menu .ico-close, .menu-open .m-menu .ico-open { display: none; }
   .menu-open .m-menu .ico-close { display: block; }
 
