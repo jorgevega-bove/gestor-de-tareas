@@ -862,6 +862,7 @@ td.c-title .lock { margin-left: -2px; }
  *  Celular (pantalla angosta, o teléfono en horizontal)
  * ============================================================ */
 .m-header { display: none; }
+#close .close-ico { display: none; }
 @media (max-width: 900px), (max-height: 520px) and (pointer: coarse) {
   body { flex-direction: column; height: 100dvh; }
   .m-header {
@@ -919,7 +920,15 @@ td.c-title .lock { margin-left: -2px; }
 
   /* Panel de la tarea a pantalla completa (sobre la barra superior: tiene su propio botón de cerrar) */
   .overlay { padding: 0; z-index: 40; }
-  .modal-bar { position: sticky; top: 0; z-index: 5; background: var(--surface); }
+  .modal-bar { position: sticky; top: 0; z-index: 5; background: var(--surface); height: 52px; padding: 0 8px 0 12px; gap: 2px; }
+  /* Íconos del panel con el mismo estilo que los de la barra superior */
+  .modal-bar .icon-btn, .modal-bar .panel-lock { width: 40px; height: 40px; min-width: 40px; padding: 0; border-radius: 8px; color: var(--text); }
+  .modal-bar .icon-btn:hover { background: none; }
+  .modal-bar .icon-btn:active { background: var(--hover); }
+  .modal-bar svg.i, .modal-bar .panel-lock svg.i { width: 19px; height: 19px; }
+  #close .close-txt { display: none; }
+  #close .close-ico { display: block; width: 22px; height: 22px; }
+  #delete-task.danger { width: auto; padding: 0 10px; color: var(--danger); }
   .modal { max-width: none; min-height: 100%; border-radius: 0; }
   .modal-body { padding: 4px 16px 60px; }
   .props { grid-template-columns: 120px 1fr; }
