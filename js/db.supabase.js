@@ -76,13 +76,15 @@
   const mapTask = (r, assignees = [], deps = []) => ({
     id: r.id, project_id: r.project_id, position: r.position, title: r.title || '', description: r.description || '',
     status: r.status, priority: r.priority, due_at: r.due_at, created_by: r.created_by, created_at: toLocal(r.created_at),
+    editors: Array.isArray(r.editors) ? r.editors : null,
     assignees, depends_on: deps,
   });
   // Columnas de la tabla tasks que la app puede modificar
-  const TASK_COLS = ['project_id', 'position', 'title', 'description', 'status', 'priority', 'due_at', 'created_by'];
+  const TASK_COLS = ['project_id', 'position', 'title', 'description', 'status', 'priority', 'due_at', 'created_by', 'editors'];
   const taskRow = (t) => ({
     project_id: t.project_id, position: t.position ?? null, title: t.title || '', description: t.description || '',
     status: t.status || 'todo', priority: t.priority || 'baja', due_at: t.due_at || null, created_by: t.created_by || null,
+    editors: Array.isArray(t.editors) ? t.editors : null,
   });
   const mapComment = (r) => ({ id: r.id, task_id: r.task_id, author: r.author, body: r.body, created_at: toLocal(r.created_at) });
   const numericEntity = (e) => e === 'task' || e === 'project';

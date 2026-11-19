@@ -116,7 +116,7 @@ const DATA_STORES = ['people', 'projects', 'tasks', 'comments', 'meta', 'activit
 
 /* ---------- Bitácora ---------- */
 // Campos de la tarea que se registran cuando cambian
-const TRACKED = ['title', 'status', 'priority', 'assignees', 'project_id', 'due_at', 'depends_on', 'description'];
+const TRACKED = ['title', 'status', 'priority', 'assignees', 'project_id', 'due_at', 'depends_on', 'description', 'editors'];
 // Al escribir, el título y la descripción se guardan varias veces: se agrupan en un solo registro
 const COALESCE_MS = 2 * 60 * 1000;
 async function logActivity(entry, { coalesce = false } = {}) {
@@ -355,6 +355,7 @@ let Api = {
       created_at: nowISO(),
       due_at: null,
       depends_on: [],
+      editors: null, // null = todos pueden editarla
       // Las tareas nuevas quedan al final del orden manual
       position: (await LocalDB.all('tasks')).reduce((m, t) => Math.max(m, t.position ?? t.id), 0) + 1,
       ...fields,

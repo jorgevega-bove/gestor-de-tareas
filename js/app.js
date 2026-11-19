@@ -169,6 +169,27 @@ const avatar = (u) => `<span class="avatar" style="background:${u.color}">${u.na
 const person = (id) => (user(id) ? `<span class="tag c-gray person">${esc(user(id).name)}</span>` : '');
 const people = (ids) => (ids || []).filter(user).map(person).join('');
 const assigneeNames = (t) => (t.assignees || []).map(userName).filter(Boolean).join(', ');
+
+/* ---------- Permisos por tarea ----------
+ * t.editors: null = todos pueden editar y borrar; si es una lista, solo esas personas.
+ * Quien creó la tarea siempre puede, y es el único que cambia los permisos.
+ * La base de datos aplica la misma regla (ver supabase/esquema.sql). Comentar no requiere permiso. */
+const MEMBERS = () => (SHARED() ? USERS.filter((u) => u.email) : USERS); // miembros con cuenta
+const isRestricted = (t) => !!t && Array.isArray(t.editors);
+const canEdit = (t) => !isRestricted(t) || t.created_by === CURRENT_USER || t.editors.includes(CURRENT_USER);
+const canManagePerms = (t) => !!t && t.created_by === CURRENT_USER;
+const editorIds = (t) => [...new Set([t.created_by, ...(t.editors || [])])].filter((id) => user(id));
+function lockTitle(t) {
+  const names = editorIds(t).map(userName).join(', ');
+  return `Pueden editarla: ${names}${canEdit(t) ? '' : ' · Tú solo puedes comentar'}`;
+}
+const lockIcon = (t) => (isRestricted(t) ? `<span class="lock" title="${esc(lockTitle(t))}">${icon('lock')}</span>` : '');
+// Devuelve true (y avisa) si no se puede editar la tarea
+function denyEdit(t, verb = 'editar') {
+  if (!t || canEdit(t)) return false;
+  toast(`No tienes permiso para ${verb} la tarea ${t.id}`);
+  return true;
+}
 const projectById = (id) => state.projects.find((p) => p.id === Number(id));
 const projectName = (id) => (projectById(id) ? projectById(id).name : null);
 // Los proyectos no llevan color: todos usan el mismo contenedor gris
@@ -308,7 +329,7 @@ function cell(col, t) {
     case 'code': return `<td class="c-code">${code(t)}</td>`;
     case 'title': {
       const title = t.title ? esc(t.title) : '<span class="untitled">Sin título</span>';
-      return `<td class="c-title"${ed}><div class="t"><span class="t-text">${title}</span><button class="open" data-open="${t.id}" title="Abrir el panel de la tarea">ABRIR</button></div></td>`;
+      return `<td class="c-title"${ed}><div class="t"><span class="t-text">${title}</span>${lockIcon(t)}<button class="open" data-open="${t.id}" title="Abrir el panel de la tarea">ABRIR</button></div></td>`;
     }
     case 'status': return `<td${ed}>${pill(STATUS, t.status)}</td>`;
     case 'priority': return `<td${ed}>${pill(PRIORITY, t.priority)}</td>`;
@@ -360,6 +381,7 @@ function laneValues(t, g) {
 // Cambia el campo de agrupación al mover una tarjeta de una columna a otra
 async function moveToLane(t, g, from, to) {
   if (from === to) return;
+  if (denyEdit(t)) return;
   if (g === 'status') return setStatus(t, to);
   if (g === 'priority') t.priority = to || DEFAULT_PRIORITY;
   else if (g === 'project_id') t.project_id = Number(to);
@@ -400,7 +422,7 @@ function renderBoard() {
       <div class="lane-h" draggable="true" title="Arrastra para mover la columna">${head}<span class="n">${items.length}</span></div>
       <div class="cards">${items.map((t) => `
         <div class="card ${cardColor(t, g)}" ${readOnly ? '' : 'draggable="true"'} data-open="${t.id}" data-card="${t.id}">
-          <div class="card-title">${t.title ? esc(t.title) : '<span class="untitled">Sin título</span>'}</div>
+          <div class="card-title"><span>${t.title ? esc(t.title) : '<span class="untitled">Sin título</span>'}</span>${lockIcon(t)}</div>
           ${cardMeta(t, g)}
         </div>`).join('')}</div>
       <div class="new-card" data-new-in="${esc(k)}">＋ Nueva</div>
@@ -436,7 +458,7 @@ function renderTableView() {
   const shown = sortedTasks();
   $('#rows').innerHTML = shown.length ? '' : `<tr class="no-results"><td></td><td colspan="${cols.length}">${state.tasks.some(inView) ? 'Ninguna tarea coincide con la búsqueda o los filtros' : (isAllView() ? 'No hay tareas en los proyectos en curso' : 'Este proyecto todavía no tiene tareas')}</td></tr>`;
   $('#rows').innerHTML += shown.map((t) =>
-    `<tr data-row="${t.id}" class="${state.selected.has(t.id) ? 'selected' : ''}"><td class="gutter"><span class="row-drag" draggable="true" data-drag-row="${t.id}" title="Arrastra para mover la tarea">⋮⋮</span><button class="row-del" data-del-task="${t.id}" title="Eliminar tarea">${icon('trash')}</button></td>${cols.map((c) => cell(c, t)).join('')}</tr>`).join('');
+    `<tr data-row="${t.id}" class="${state.selected.has(t.id) ? 'selected' : ''}"><td class="gutter"><span class="row-drag" draggable="true" data-drag-row="${t.id}" title="Arrastra para mover la tarea">⋮⋮</span>${canEdit(t) ? `<button class="row-del" data-del-task="${t.id}" title="Eliminar tarea">${icon('trash')}</button>` : ''}</td>${cols.map((c) => cell(c, t)).join('')}</tr>`).join('');
   const total = state.tasks.filter(inView).length;
   $('#count').textContent = isFiltering() ? `${shown.length} de ${total}` : total;
   renderFilterBar();
@@ -547,6 +569,52 @@ function prop(iconName, label, value, editable = false) {
   return `<div class="p-label">${icon(iconName)}${label}</div><div class="p-val ${editable ? 'editable' : ''}">${value}</div>`;
 }
 
+// Controles del panel que modifican la tarea (bloqueados sin permiso)
+const PANEL_EDIT = '#pick-status, #pick-priority, #pick-due, #pick-project, #add-user, [data-remove-user], #add-dep, #add-rdep, [data-remove-dep], [data-remove-rdep], [data-del-att], #delete-task, .attach-btn, #clear-due';
+
+function permsValue(t) {
+  const tags = isRestricted(t)
+    ? editorIds(t).map((id) => `<span class="tag c-gray person">${esc(userName(id))}</span>`).join('')
+    : '<span class="tag c-gray">Todos</span>';
+  return canManagePerms(t) ? `<button class="pick-btn" id="pick-perms" title="Elegir quién puede editar y borrar esta tarea">${tags}</button>`
+    : `<span class="people" title="Solo quien creó la tarea puede cambiar los permisos">${tags}</span>`;
+}
+
+// Menú de permisos: "Todos" o una lista de miembros del equipo. Quien la creó siempre queda marcado.
+function openPermsPicker(anchor) {
+  const t = byId(state.openId);
+  if (!canManagePerms(t)) { toast('Solo quien creó la tarea puede cambiar los permisos'); return; }
+  openPopover(anchor, `<div class="title">Pueden editar y borrar</div>
+    <input class="search" id="perm-search" placeholder="Buscar persona…" autocomplete="off">
+    <div class="opts" id="perm-opts"></div>`);
+  pop().dataset.kind = 'perms';
+  pop().dataset.task = t.id;
+  renderPermOpts();
+  $('#perm-search').focus();
+  $('#perm-search').oninput = renderPermOpts;
+}
+function renderPermOpts() {
+  const t = byId(Number(pop().dataset.task));
+  const q = norm(($('#perm-search') || {}).value || '').trim();
+  const all = !isRestricted(t);
+  const list = MEMBERS().filter((u) => !q || norm(u.name).includes(q));
+  $('#perm-opts').innerHTML = (q ? '' : `<div class="opt" data-perm-all><span class="cb ${all ? 'on' : ''}"></span><span class="tag c-gray">Todos</span></div><div class="pop-sep"></div>`) +
+    list.map((u) => {
+      const creator = u.id === t.created_by;
+      const on = all || creator || t.editors.includes(u.id);
+      return `<div class="opt ${creator ? 'locked' : ''}" ${creator ? 'title="Quien creó la tarea siempre puede editarla"' : `data-perm-toggle="${u.id}"`}>
+        <span class="cb ${on ? 'on' : ''}"></span><span class="tag c-gray person">${esc(u.name)}</span>${creator ? '<span class="opt-note">Creador</span>' : ''}</div>`;
+    }).join('') || '<div class="title">Sin resultados</div>';
+}
+async function setEditors(t, editors) {
+  // Si quedan marcados todos los miembros, vuelve a "Todos" (incluye a quienes se sumen después)
+  if (editors && MEMBERS().every((u) => editors.includes(u.id) || u.id === t.created_by)) editors = null;
+  t.editors = editors ? [...new Set([t.created_by, ...editors])].filter(Boolean) : null;
+  await Api.saveTask(t);
+  renderPermOpts();
+  refreshTask(t.id);
+}
+
 function pickUsers(ids) {
   return `<span class="people">${(ids || []).filter(user).map((id) =>
     `<span class="tag c-gray person">${esc(userName(id))}<button class="tag-x" data-remove-user="${id}" title="Quitar">×</button></span>`).join('')}</span>` +
@@ -587,6 +655,7 @@ function renderPanel() {
         `<button class="mini add-dep" id="add-dep">${deps.length ? '+' : 'Vacío'}</button>`, true)}
       ${prop('link', 'Condiciona a', blocking(t).map((d) => depChip(d, true, true, true)).join('') +
         `<button class="mini add-dep" id="add-rdep">${blocking(t).length ? '+' : 'Vacío'}</button>`, true)}
+      ${prop('lock', 'Permisos', permsValue(t), canManagePerms(t))}
       ${prop('person', 'Creado por', person(t.created_by))}
       ${prop('clock', 'Fecha de creación', `<span class="ro">${fmt(t.created_at)}</span>`)}
     </div>`)}
@@ -626,6 +695,14 @@ function renderPanel() {
   // Valores de texto (se asignan por JS para no tener problemas con caracteres especiales)
   $('#f-title').value = t.title;
   $('#f-desc').value = t.description;
+  // Sin permiso: solo lectura, con el candado arriba a la derecha
+  const ro = !canEdit(t);
+  $('#modal').classList.toggle('ro-task', ro);
+  $('#f-title').readOnly = ro;
+  $('#f-desc').readOnly = ro;
+  $('#panel-lock').hidden = !isRestricted(t);
+  $('#panel-lock').innerHTML = icon('lock');
+  $('#panel-lock').title = lockTitle(t);
   autoGrow($('#f-title'));
   autoGrow($('#f-desc'));
   overlay.scrollTop = scroll;
@@ -706,7 +783,7 @@ async function updateTask(patch, { rerenderPanel = true } = {}) {
 /* ---------- Adjuntos ---------- */
 async function addFiles(fileList) {
   const t = byId(state.openId);
-  if (!t || !fileList.length) return;
+  if (!t || !fileList.length || denyEdit(t)) return;
   for (const f of fileList) await Api.addAttachment(t.id, f, 'file', CURRENT_USER);
   state.attachments = await Api.listAttachments(t.id);
   renderPanel();
@@ -753,7 +830,7 @@ function openDepPicker(anchor, taskId = state.openId, reverse = false) {
   const t = byId(taskId);
   const candidates = () => state.tasks
     .filter((x) => x.id !== t.id && (reverse
-      ? !x.depends_on.includes(t.id) && !dependsOn(t, x.id)
+      ? !x.depends_on.includes(t.id) && !dependsOn(t, x.id) && canEdit(x)
       : !t.depends_on.includes(x.id) && !dependsOn(x, t.id)))
     .sort((a, b) => a.id - b.id);
   // Búsqueda por ID ("3", "#3", "id 3") o por título; el ID exacto aparece primero
@@ -897,7 +974,11 @@ function renderSelectionBar() {
     <button data-bulk="clear" class="sel-x" title="Quitar selección (Esc)">✕</button>`;
 }
 function openBulk(anchor, field) {
-  const first = [...state.selected][0];
+  const sel = [...state.selected].map(byId).filter(Boolean);
+  const ok = sel.filter(canEdit);
+  if (!ok.length) { toast('No tienes permiso para editar las tareas seleccionadas'); return; }
+  if (ok.length < sel.length) toast(`${sel.length - ok.length} tarea${sel.length - ok.length > 1 ? 's' : ''} sin permiso no se modificará${sel.length - ok.length > 1 ? 'n' : ''}`);
+  const first = ok[0].id;
   if (field === 'assignees') openUsersMenu(anchor, first);
   else if (field === 'due_at') openCellDate(anchor, first);
   else openCellSelect(anchor, first, field);
@@ -909,7 +990,7 @@ function openBulk(anchor, field) {
 /* ---------- Edición directa en la tabla ---------- */
 const popTask = () => byId(Number(pop().dataset.task));
 // Tareas sobre las que actúa el menú abierto: una sola, o todas las seleccionadas (selección múltiple)
-const popTargets = () => (pop().dataset.bulk ? [...state.selected].map(byId).filter(Boolean) : [popTask()].filter(Boolean));
+const popTargets = () => (pop().dataset.bulk ? [...state.selected].map(byId).filter((t) => t && canEdit(t)) : [popTask()].filter(Boolean));
 function refreshTask(id) {
   renderTable();
   if (state.openId === id) renderPanel();
@@ -1016,6 +1097,7 @@ function editTitle(td, taskId) {
 function editCell(td) {
   const id = Number(td.closest('tr').dataset.row);
   const key = td.dataset.cell;
+  if (denyEdit(byId(id))) return;
   if (key === 'title') return editTitle(td, id);
   if (['status', 'priority', 'project_id'].includes(key)) return openCellSelect(td, id, key);
   if (key === 'assignees') return openUsersMenu(td, id);
@@ -1139,6 +1221,8 @@ function showConfirm({ title, body, ok, onOk }) {
 
 function confirmDeleteProject(id) {
   const p = projectById(id);
+  const locked = state.tasks.filter((t) => t.project_id === id && !canEdit(t)).length;
+  if (locked) { toast(`No puedes eliminar este proyecto: tiene ${locked} tarea${locked > 1 ? 's' : ''} que no tienes permiso para eliminar`); return; }
   if (state.projects.length === 1) { toast('Debe quedar al menos un proyecto'); return; }
   const n = state.tasks.filter((t) => t.project_id === p.id).length;
   showConfirm({
@@ -1222,7 +1306,7 @@ function openShortcuts() {
 
 /* ---------- Bitácora ---------- */
 const FIELD_LABEL = { title: 'el título', status: 'el estado', priority: 'la prioridad', assignees: 'los responsables',
-  project_id: 'el proyecto', due_at: 'la fecha límite', depends_on: 'las dependencias', description: 'la descripción' };
+  project_id: 'el proyecto', due_at: 'la fecha límite', depends_on: 'las dependencias', description: 'la descripción', editors: 'los permisos' };
 let activityProject = 'all'; // bitácora: 'all' o el id del proyecto elegido
 
 function fmtValue(field, v, entry) {
@@ -1233,6 +1317,7 @@ function fmtValue(field, v, entry) {
     case 'assignees': return (v || []).length ? v.map((id) => `<span class="tag c-gray">${esc(userName(id) || id)}</span>`).join(' ') : none;
     case 'due_at': return v ? esc(fmtDue(v)) : none;
     case 'depends_on': return (v || []).length ? v.map((id) => `<span class="tag c-gray">${id}</span>`).join(' ') : none;
+    case 'editors': return Array.isArray(v) ? v.map((id) => `<span class="tag c-gray">${esc(userName(id) || id)}</span>`).join(' ') : '<span class="tag c-gray">Todos</span>';
     case 'project_id': return `<span class="tag c-gray">${esc((entry.extra || {})[v === entry.from ? 'from' : 'to'] || 'proyecto eliminado')}</span>`;
     case 'title': return `«${esc(v || 'Sin título')}»`;
     default: return esc(v ?? '');
@@ -1515,6 +1600,19 @@ document.addEventListener('click', async (e) => {
     closePopover(); refreshTask(t.id);
     return;
   }
+  // Permisos
+  if (target.closest('[data-perm-all]')) {
+    const t = popTask();
+    if (isRestricted(t)) await setEditors(t, null);
+    return;
+  }
+  const permT = target.closest('[data-perm-toggle]');
+  if (permT) {
+    const t = popTask(), id = permT.dataset.permToggle;
+    const cur = isRestricted(t) ? t.editors : MEMBERS().map((u) => u.id);
+    await setEditors(t, cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]);
+    return;
+  }
   // "Condiciona a": se agrega/quita esta tarea en las dependencias de la otra
   const rdepOpt = target.closest('[data-add-rdep]');
   if (rdepOpt) {
@@ -1645,7 +1743,11 @@ document.addEventListener('click', async (e) => {
   const gp = target.closest('[data-group]');
   if (gp) { prefs.groupBy = gp.dataset.group; savePrefs(); closePopover(); renderTable(); return; }
   if (pop().contains(target)) return;
-  if (pop().classList.contains('open') && !target.closest('#add-dep, #add-rdep, #cols-tool, #group-tool, #add-user, #pick-project, #pick-due, #pick-status, #pick-priority')) { closePopover(); }
+  if (pop().classList.contains('open') && !target.closest('#add-dep, #add-rdep, #cols-tool, #group-tool, #add-user, #pick-project, #pick-due, #pick-status, #pick-priority, #pick-perms')) { closePopover(); }
+
+  // Panel de una tarea sin permiso: solo lectura (comentar sí se puede)
+  if (target.closest(PANEL_EDIT) && $('#modal').contains(target) && denyEdit(byId(state.openId))) return;
+  if (target.closest('#pick-perms')) { openPermsPicker(target.closest('#pick-perms')); return; }
 
   // Borrar adjunto (antes que el enlace de descarga)
   const delAtt = target.closest('[data-del-att]');
@@ -1735,7 +1837,7 @@ document.addEventListener('click', async (e) => {
   const rowDel = target.closest('[data-del-task]');
   if (rowDel) {
     const t = byId(Number(rowDel.dataset.delTask));
-    if (!t) return;
+    if (!t || denyEdit(t, 'eliminar')) return;
     showConfirm({
       title: '¿Eliminar tarea?',
       body: `Se eliminará «${esc(t.title || 'Sin título')}» con sus comentarios y archivos adjuntos.${UNDO_HINT()}`,
@@ -1758,7 +1860,10 @@ document.addEventListener('click', async (e) => {
     const f = bk.dataset.bulk;
     if (f === 'clear') { clearSelection(); return; }
     if (f === 'delete') {
-      const ids = [...state.selected];
+      const sel = [...state.selected].map(byId).filter(Boolean);
+      const ids = sel.filter(canEdit).map((t) => t.id);
+      if (!ids.length) { toast('No tienes permiso para eliminar las tareas seleccionadas'); return; }
+      if (ids.length < sel.length) toast(`${sel.length - ids.length} tarea${sel.length - ids.length > 1 ? 's' : ''} sin permiso no se eliminará${sel.length - ids.length > 1 ? 'n' : ''}`);
       showConfirm({
         title: `¿Eliminar ${ids.length} tarea${ids.length > 1 ? 's' : ''}?`,
         body: `Se eliminarán con sus comentarios y archivos adjuntos.${UNDO_HINT()}`,

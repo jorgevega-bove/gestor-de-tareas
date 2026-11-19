@@ -285,3 +285,130 @@ grant usage, select on all sequences in schema public to authenticated;
 revoke all on all tables in schema public from anon;
 -- TRUNCATE no pasa por RLS: nadie desde la app puede vaciar una tabla completa
 revoke truncate, references, trigger on all tables in schema public from authenticated;
+
+-- ---------------------------------------------------------------------
+-- 9. Permisos por tarea
+--    tasks.editors: personas que pueden editar y borrar la tarea.
+--    null = todos (y quien se sume al equipo después también).
+--    Quien creó la tarea siempre puede, y es el único que cambia la lista.
+--    Comentar no requiere permiso.
+-- ---------------------------------------------------------------------
+alter table public.tasks add column if not exists editors text[];
+
+-- Persona vinculada a la cuenta con sesión iniciada
+create or replace function public.persona_actual()
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select id from public.people
+   where email is not null and lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+     and not deleted
+   limit 1;
+$$;
+
+-- ¿La cuenta actual puede editar esta tarea? (sin sesión = panel de Supabase: sí)
+create or replace function public.puede_editar(t public.tasks)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select auth.uid() is null
+      or t.editors is null
+      or public.persona_actual() = t.created_by
+      or public.persona_actual() = any (t.editors);
+$$;
+
+create or replace function public.puede_editar_tarea(tid bigint)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce((select public.puede_editar(t) from public.tasks t where t.id = tid), true);
+$$;
+
+-- Cambios a una tarea: sin permiso solo se permite moverla de lugar (position)
+-- y que se libere sola (En espera → No completada) cuando terminan sus dependencias.
+create or replace function public.revisar_permisos_tarea()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  a jsonb;
+  b jsonb;
+begin
+  if auth.uid() is null then
+    return coalesce(new, old);
+  end if;
+  if tg_op = 'DELETE' then
+    if not public.puede_editar(old) then
+      raise exception 'No tienes permiso para eliminar la tarea %', old.id using errcode = '42501';
+    end if;
+    return old;
+  end if;
+  -- Solo quien la creó cambia los permisos o el creador
+  if (new.editors is distinct from old.editors or new.created_by is distinct from old.created_by)
+     and public.persona_actual() is distinct from old.created_by then
+    raise exception 'Solo quien creó la tarea % puede cambiar sus permisos', old.id using errcode = '42501';
+  end if;
+  if not public.puede_editar(old) then
+    a := to_jsonb(old) - 'position';
+    b := to_jsonb(new) - 'position';
+    if old.status = 'wait' and new.status = 'todo' then
+      a := a - 'status';
+      b := b - 'status';
+    end if;
+    if a is distinct from b then
+      raise exception 'No tienes permiso para editar la tarea %', old.id using errcode = '42501';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists revisar_permisos_tarea on public.tasks;
+create trigger revisar_permisos_tarea
+  before update or delete on public.tasks
+  for each row execute function public.revisar_permisos_tarea();
+
+-- Responsables, dependencias y adjuntos son parte de la tarea: requieren permiso.
+-- (Al eliminar una persona del equipo se la quita de todas sus tareas.)
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['task_assignees', 'task_dependencies', 'attachments']
+  loop
+    execute format('drop policy if exists "Usuarios de la empresa" on public.%I', t);
+    execute format('drop policy if exists "Leer" on public.%I', t);
+    execute format('drop policy if exists "Agregar con permiso" on public.%I', t);
+    execute format('drop policy if exists "Cambiar con permiso" on public.%I', t);
+    execute format('drop policy if exists "Quitar con permiso" on public.%I', t);
+    execute format('create policy "Leer" on public.%I for select to authenticated using (public.es_usuario_permitido())', t);
+    execute format('create policy "Agregar con permiso" on public.%I for insert to authenticated with check (public.es_usuario_permitido() and public.puede_editar_tarea(task_id))', t);
+    execute format('create policy "Cambiar con permiso" on public.%I for update to authenticated using (public.es_usuario_permitido() and public.puede_editar_tarea(task_id)) with check (public.es_usuario_permitido() and public.puede_editar_tarea(task_id))', t);
+  end loop;
+end $$;
+
+create policy "Quitar con permiso" on public.task_assignees for delete to authenticated
+  using (public.es_usuario_permitido() and (public.puede_editar_tarea(task_id)
+         or exists (select 1 from public.people p where p.id = person_id and p.deleted)));
+create policy "Quitar con permiso" on public.task_dependencies for delete to authenticated
+  using (public.es_usuario_permitido() and public.puede_editar_tarea(task_id));
+create policy "Quitar con permiso" on public.attachments for delete to authenticated
+  using (public.es_usuario_permitido() and public.puede_editar_tarea(task_id));
+
+revoke execute on function public.persona_actual() from public, anon;
+revoke execute on function public.puede_editar(public.tasks) from public, anon;
+revoke execute on function public.puede_editar_tarea(bigint) from public, anon;
+grant execute on function public.persona_actual() to authenticated;
+grant execute on function public.puede_editar(public.tasks) to authenticated;
+grant execute on function public.puede_editar_tarea(bigint) to authenticated;
