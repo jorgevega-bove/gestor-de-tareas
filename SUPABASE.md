@@ -8,7 +8,7 @@ Todo el código ya está preparado. Solo faltan los datos de la cuenta de Supaba
 
 ## Dónde está publicada
 
-- **App:** https://gestor-de-tareas-woad.vercel.app (Vercel, proyecto `gestor-de-tareas` de jorgevega-bove). Cada push a la rama `diseno-bove` se publica solo.
+- **App:** https://bove-backlog.vercel.app (Vercel, proyecto `gestor-de-tareas` de jorgevega-bove; la dirección antigua gestor-de-tareas-woad.vercel.app redirige a esta). Cada push a la rama `diseno-bove` se publica solo.
 - **Base de datos:** Supabase, proyecto `bove-backlog` (organización jorgevega-bove). Solo pueden entrar correos `@bove.cl`.
 
 ## Qué está preparado
