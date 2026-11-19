@@ -887,7 +887,9 @@ td.c-title .lock { margin-left: -2px; }
   }
   .sidebar .ws { display: none; } /* el logo ya está en la barra superior */
   .sidebar .side-foot { display: none; } /* la cuenta está en la barra superior */
-  .menu-open .side-item, .menu-open .sec-h { font-size: 16px; }
+  .menu-open .side-item { font-size: 16px; }
+  .menu-open .sec-h { font-size: 14.5px; } /* títulos de sección ~10% más chicos */
+  .menu-open .sec-add { font-size: 18.5px; width: 25px; height: 25px; } /* "+" ~15% más grande */
   .menu-open .side-item { padding: 9px 10px; }
   .menu-open .proj-archive { opacity: 1; width: 32px; height: 32px; }
   .proj-search { height: 40px; }
