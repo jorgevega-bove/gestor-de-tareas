@@ -1086,14 +1086,20 @@ function renderSidebar() {
       <button class="proj-archive" data-archive="${p.id}" title="${p.archived ? 'Desarchivar proyecto' : 'Archivar proyecto'}">${ARCHIVE_ICON}</button>
       <button class="proj-archive proj-delete" data-delete-project="${p.id}" title="Eliminar proyecto">${TRASH_ICON}</button>
     </div>`;
-  const active = state.projects.filter((p) => !p.archived);
-  const archived = state.projects.filter((p) => p.archived);
-  $('#project-list').innerHTML = active.map(item).join('') +
-    `<div class="side-item proj show-all ${isAllView() ? 'active' : ''}" data-show-all><span class="proj-name">Mostrar todos</span></div>`;
-  $('#archived-list').innerHTML = archived.map(item).join('') || '<div class="side-empty">Ninguno</div>';
+  // Buscador de proyectos (bajo el logo): filtra ambas listas y las muestra abiertas
+  const q = norm(($('#proj-search') || {}).value || '').trim();
+  const match = (p) => !q || norm(p.name).includes(q);
+  const active = state.projects.filter((p) => !p.archived && match(p));
+  const archived = state.projects.filter((p) => p.archived && match(p));
+  const none = `<div class="side-empty">${q ? 'Sin resultados' : 'Ninguno'}</div>`;
+  $('#project-list').innerHTML = q
+    ? active.map(item).join('') || none
+    : active.map(item).join('') + `<div class="side-item proj show-all ${isAllView() ? 'active' : ''}" data-show-all><span class="proj-name">Mostrar todos</span></div>`;
+  $('#archived-list').innerHTML = archived.map(item).join('') || none;
   const current = projectById(prefs.project);
-  document.querySelectorAll('[data-section]').forEach((h) => h.classList.toggle('open', prefs.openSections.includes(h.dataset.section)));
-  document.querySelectorAll('[data-body]').forEach((b) => { b.hidden = !prefs.openSections.includes(b.dataset.body); });
+  const isOpen = (sec) => !!q || prefs.openSections.includes(sec);
+  document.querySelectorAll('[data-section]').forEach((h) => h.classList.toggle('open', isOpen(h.dataset.section)));
+  document.querySelectorAll('[data-body]').forEach((b) => { b.hidden = !isOpen(b.dataset.body); });
   const title = isAllView() ? 'Proyectos en curso' : current ? current.name : '';
   if (!$('#page-title').isContentEditable) $('#page-title').textContent = title;
   $('#page-title').classList.toggle('static', isAllView());
@@ -1918,6 +1924,16 @@ function clearSearch() {
   $('#search-box').classList.remove('open');
   renderTable();
 }
+
+// Buscador de proyectos: filtra al escribir; Escape lo limpia
+$('#proj-search').addEventListener('input', () => renderSidebar());
+$('#proj-search').addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); e.target.value = ''; renderSidebar(); e.target.blur(); }
+  if (e.key === 'Enter') {
+    const first = document.querySelector('#sidebar-projects [data-project]');
+    if (first) { selectProject(Number(first.dataset.project)); }
+  }
+});
 
 document.addEventListener('input', (e) => {
   const el = e.target;
