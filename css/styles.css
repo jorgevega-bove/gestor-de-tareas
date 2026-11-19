@@ -679,7 +679,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"] { color-sch
 
 /* Marca */
 .ws { padding: 10px 8px 8px; }
-.ws-logo { height: 16px; width: auto; display: block; }
+.ws-logo { height: 18.4px; width: auto; display: block; }
 .lo-logo-img { height: 26px; width: auto; display: block; margin: 0 auto 18px; }
 
 /* Rótulos en mono, versalitas (registro "legend" de BOVE) */
