@@ -887,6 +887,7 @@ td.c-title .lock { margin-left: -2px; }
     overflow-y: auto;
   }
   .sidebar .ws { display: none; } /* el logo ya está en la barra superior */
+  .sidebar .side-foot { display: none; } /* la cuenta está en la barra superior */
   .menu-open .side-item, .menu-open .sec-h { font-size: 16px; }
   .menu-open .side-item { padding: 9px 10px; }
   .menu-open .proj-archive { opacity: 1; width: 32px; height: 32px; }

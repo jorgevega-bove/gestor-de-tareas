@@ -1966,7 +1966,7 @@ document.addEventListener('click', async (e) => {
 
   // Cuenta: menú con Configuración, Atajos de teclado y Salir
   if (target.closest('#account')) { openAccountMenu(target.closest('#account')); return; }
-  if (target.closest('#m-account')) { setMobileMenu(false); openAccountMenu(target.closest('#m-account')); return; }
+  if (target.closest('#m-account')) { openAccountMenu(target.closest('#m-account')); return; } // el menú (☰) queda como estaba
   if (target.closest('#login-again')) { setLoggedOut(false); return; }
   if (target.closest('[data-dialog-close]') || target.id === 'dialog') { closeDialog(); return; }
   const lt = target.closest('[data-log-task]');
