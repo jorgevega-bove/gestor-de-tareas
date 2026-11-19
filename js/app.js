@@ -267,11 +267,14 @@ async function moveTask(movedId, targetId, after) {
   }
 }
 
-function sortedTasks() {
+// Sin un orden elegido: la tabla muestra lo más reciente arriba (por fecha de creación);
+// el Kanban mantiene el orden manual de las tarjetas.
+function sortedTasks({ manual = false } = {}) {
   const list = state.tasks.filter((t) => inView(t) && matchesQuery(t) && matchesFilters(t));
   const { key, dir } = prefs.sort;
   const col = COLUMNS.find((c) => c.key === key);
-  if (!col) return list.sort((a, b) => pos(a) - pos(b) || a.id - b.id);
+  if (!col && manual) return list.sort((a, b) => pos(a) - pos(b) || a.id - b.id);
+  if (!col) return list.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '') || b.id - a.id);
   return list.sort((a, b) => {
     const va = col.sort(a), vb = col.sort(b);
     const na = va === null || va === undefined || va === '';
@@ -376,7 +379,7 @@ function orderedLanes(g) {
 function renderBoard() {
   if (!GROUP_LABEL[prefs.groupBy]) prefs.groupBy = 'status'; // opciones antiguas (Proyecto, Creado por) vuelven a Estado
   const g = prefs.groupBy;
-  const list = sortedTasks();
+  const list = sortedTasks({ manual: true });
   const readOnly = g === 'created_by';
   $('#group-tool').innerHTML = `${TOGGLE_ICON}Propiedades`;
   $('#board-view').innerHTML = orderedLanes(g).map(([k, head]) => {
