@@ -298,11 +298,10 @@ textarea, input { font: inherit; color: inherit; }
 th.gutter, td.gutter { width: 56px; min-width: 56px; padding: 0 4px 0 0; border: none; border-bottom: none; background: transparent !important; cursor: default; text-align: right; }
 .row-del {
   width: 26px; height: 26px; border-radius: 4px; border: none; background: none; cursor: pointer;
-  color: var(--text-3); display: inline-grid; place-items: center; opacity: 0;
+  color: var(--text-3); display: inline-grid; place-items: center; padding: 0; opacity: 0;
 }
 tbody tr:hover .row-del { opacity: 1; }
 .row-del:hover { background: var(--hover); color: var(--text-2); }
-.row-del.armed { opacity: 1; background: var(--danger-bg); color: var(--danger); }
 .add-row, .count { margin-left: 0; }
 
 /* ---------- Búsqueda ---------- */
@@ -455,7 +454,7 @@ h1#page-title.static:hover { background: none; }
 
 /* ---------- Eliminar proyecto ---------- */
 .proj-archive + .proj-delete { margin-left: 0; }
-.proj-delete:hover { color: var(--danger); background: var(--danger-bg); }
+.proj-delete:hover { color: var(--danger); }
 .confirm-overlay { position: fixed; inset: 0; background: var(--scrim); z-index: 60; display: none; align-items: center; justify-content: center; padding: 24px; }
 .confirm-overlay.open { display: flex; }
 .confirm-box { background: var(--surface); border-radius: 10px; max-width: 420px; width: 100%; padding: 22px 24px 18px; box-shadow: var(--shadow-overlay); animation: pop .14s ease-out; }
@@ -620,8 +619,8 @@ tbody tr.selected td.c-title { box-shadow: inset 2px 0 0 var(--accent); }
 
 /* Íconos de archivar y eliminar proyecto más juntos */
 .side-item.proj { gap: 4px; }
-.proj-archive { width: 20px; height: 20px; }
-.proj-archive + .proj-delete { margin-left: -2px; }
+.proj-archive { width: 20px; height: 20px; padding: 0; }
+.proj-archive + .proj-delete { margin-left: 0; }
 .section-h .attach-btn { display: inline-grid; place-items: center; width: 26px; height: 26px; padding: 0; color: var(--text-2); }
 .section-h .attach-btn svg.line-ico { width: 16px; height: 16px; }
 .section-h .attach-btn:hover { color: var(--text); }

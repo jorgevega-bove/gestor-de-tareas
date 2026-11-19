@@ -1710,16 +1710,17 @@ document.addEventListener('click', async (e) => {
   }
   if (target.closest('#lightbox')) { $('#lightbox').classList.remove('open'); return; }
 
-  // Basurero de la fila (dos clics para confirmar)
+  // Basurero de la fila: pide confirmación en una ventana
   const rowDel = target.closest('[data-del-task]');
   if (rowDel) {
-    if (!rowDel.classList.contains('armed')) {
-      document.querySelectorAll('.row-del.armed').forEach((b) => b.classList.remove('armed'));
-      rowDel.classList.add('armed');
-      rowDel.title = 'Clic de nuevo para eliminar';
-      return;
-    }
-    await deleteTask(Number(rowDel.dataset.delTask));
+    const t = byId(Number(rowDel.dataset.delTask));
+    if (!t) return;
+    showConfirm({
+      title: '¿Eliminar tarea?',
+      body: `Se eliminará «${esc(t.title || 'Sin título')}» con sus comentarios y archivos adjuntos.${UNDO_HINT()}`,
+      ok: 'Eliminar',
+      onOk: () => deleteTask(t.id),
+    });
     return;
   }
 
@@ -2091,15 +2092,6 @@ $('#search').addEventListener('blur', () => { if (!state.query.trim()) $('#searc
 document.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f' && !state.openId) {
     e.preventDefault(); $('#search-box').classList.add('open'); $('#search').focus(); $('#search').select();
-  }
-});
-
-// Si el mouse sale de la fila, el basurero vuelve a su estado normal
-$('#rows').addEventListener('mouseout', (e) => {
-  const tr = e.target.closest('tr');
-  if (tr && !tr.contains(e.relatedTarget)) {
-    const b = tr.querySelector('.row-del.armed');
-    if (b) { b.classList.remove('armed'); b.title = 'Eliminar tarea'; }
   }
 });
 
