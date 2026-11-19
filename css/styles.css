@@ -1,40 +1,41 @@
 :root {
-  /* Sistema de diseño BOVE · plano oscuro (tokens de bove-design-system/tokens/colors.css) */
-  --bg: #09161F;          /* --bove-frame: el suelo más profundo */
-  --sidebar: #0F2130;     /* --bove-readout */
-  --surface: #0F2130;     /* paneles, menús, tarjetas */
-  --surface-2: #0B1B27;   /* campos, hundido */
-  --raised: #0D2B3E;      /* --bove-navy: menús sobre paneles */
-  --text: #F2F2F0;        /* --bove-hi */
-  --text-2: #9EA2A8;      /* --bove-body-2 */
-  --text-3: #6F767D;      /* rótulos y textos de ayuda */
-  --border: #1C3242;      /* filete capilar sobre oscuro */
-  --line-strong: #2E4A5E; /* filete de énfasis bajo el encabezado de tabla */
-  --hover: #132A3B;       /* interacción acromática (navy) */
-  --hover-2: #1A3548;
-  --row-hover: #0D1F2C;
-  --cell-hover: #152E40;
-  --selected: #0E2A33;
-  --accent: #14A89F;      /* --bove-accent-dim: teal sobre oscuro */
-  --on-solid: #09161F;
-  --solid: #F2F2F0;       /* botón principal: claro sobre oscuro, sin acento */
-  --solid-hover: #FFFFFF;
-  --danger: #F07A70;      /* --bove-off aclarado para leerse sobre oscuro */
-  --danger-solid: #C0392B;/* --bove-off */
-  --danger-bg: #2E1D21;
-  /* Estados: funcionales de BOVE (off · acento · warn · yes) en su versión para fondo oscuro,
-     más brillantes, como hace la marca con el teal (#0B7A75 sobre claro → #14A89F sobre oscuro) */
-  --red: #EF5A4E;     --red-tag: #5C2E30; --red-ink: #FFFFFF; --red-card: #372428; --red-card-h: #47282C; --red-lane: #1E1C23; --red-edge: #7C3836;
-  --blue: #1FC4B9;    --blue-tag: #115556; --blue-ink: #FFFFFF; --blue-card: #0D393E; --blue-card-h: #0F4549; --blue-lane: #0B262D; --blue-edge: #146D6C;
-  --yellow: #EBC43F;  --yellow-tag: #5A552B; --yellow-ink: #FFFFFF; --yellow-card: #363925; --yellow-card-h: #464528; --yellow-lane: #1D2622; --yellow-edge: #7A6D2F;
-  --green: #3CCB7A;   --green-tag: #1B5740; --green-ink: #FFFFFF; --green-card: #133A31; --green-card-h: #174738; --green-lane: #0E2627; --green-edge: #22704C;
-  --gray-tag: #1A3040; --gray-ink: #C9CDD1;
-  --scrim: rgba(3, 9, 13, .72);
-  --shadow-overlay: 0 0 0 1px #1C3242, 0 8px 16px rgba(0,0,0,.35), 0 24px 48px rgba(0,0,0,.4);
+  /* Modo oscuro · armonía visual y menos fatiga ocular (rama modo-oscuro-armonia) */
+  --bg: #0f1115;          /* fondo principal */
+  --sidebar: #14171d;     /* panel lateral */
+  --surface: #14171d;     /* paneles, tarjetas, diálogos */
+  --surface-2: #12151b;   /* campos de texto */
+  --raised: #1a1e26;      /* menús desplegables */
+  --text: #f1f5f9;        /* texto principal (sin blanco puro) */
+  --text-2: #94a3b8;      /* texto secundario: fechas, metadatos */
+  --text-3: #64748b;      /* ayudas y textos vacíos */
+  --border: rgba(255, 255, 255, 0.06);
+  --line-strong: rgba(255, 255, 255, 0.10);
+  --hover: #1c2029;
+  --hover-2: #232836;
+  --row-hover: #1c2029;   /* hover en filas de tabla */
+  --cell-hover: #222733;
+  --selected: rgba(59, 130, 246, 0.10);
+  --accent: #3b82f6;      /* acento profesional */
+  --on-solid: #ffffff;
+  --solid: #3b82f6;       /* botón principal */
+  --solid-hover: #2563eb;
+  --danger: #fb7185;
+  --danger-solid: #e11d48;
+  --danger-bg: rgba(244, 63, 94, 0.12);
+  /* Estados: fondo translúcido al 12% y texto luminoso del mismo tono */
+  --red: #f43f5e;    --red-tag: rgba(244, 63, 94, 0.12);   --red-ink: #fda4af;    --red-card: rgba(244, 63, 94, 0.07);   --red-card-h: rgba(244, 63, 94, 0.11);   --red-lane: rgba(244, 63, 94, 0.035);   --red-edge: rgba(244, 63, 94, 0.25);
+  --blue: #38bdf8;   --blue-tag: rgba(56, 189, 248, 0.12); --blue-ink: #7dd3fc;   --blue-card: rgba(56, 189, 248, 0.07); --blue-card-h: rgba(56, 189, 248, 0.11); --blue-lane: rgba(56, 189, 248, 0.035); --blue-edge: rgba(56, 189, 248, 0.25);
+  --yellow: #f59e0b; --yellow-tag: rgba(245, 158, 11, 0.12); --yellow-ink: #fcd34d; --yellow-card: rgba(245, 158, 11, 0.07); --yellow-card-h: rgba(245, 158, 11, 0.11); --yellow-lane: rgba(245, 158, 11, 0.035); --yellow-edge: rgba(245, 158, 11, 0.25);
+  --green: #10b981;  --green-tag: rgba(16, 185, 129, 0.12); --green-ink: #6ee7b7; --green-card: rgba(16, 185, 129, 0.07); --green-card-h: rgba(16, 185, 129, 0.11); --green-lane: rgba(16, 185, 129, 0.035); --green-edge: rgba(16, 185, 129, 0.25);
+  /* Proyecto y Responsable: fondo neutro unificado */
+  --gray-tag: #1e222d; --gray-ink: #cbd5e1;
+  --scrim: rgba(5, 6, 9, .7);
+  --shadow-overlay: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 16px rgba(0,0,0,.35), 0 24px 48px rgba(0,0,0,.45);
   --font-sans: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "Commit Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --radius-control: 6px;
-  --radius-panel: 12px;
+  --radius-control: 6px;  /* etiquetas */
+  --radius-panel: 8px;    /* contenedores principales */
+  --radius-btn: 8px;      /* botones */
   --ease: cubic-bezier(0.2, 0, 0, 1);
   color-scheme: dark;
 }
@@ -336,7 +337,7 @@ th.drop-after { box-shadow: inset -3px 0 0 var(--accent); }
 .popover .hint-r { margin-left: auto; color: var(--text-3); font-size: 12px; padding-left: 12px; }
 .popover .muted-opt { color: var(--text-2); }
 .popover #flt-foot .opt { border-top: 1px solid var(--border); margin-top: 4px; border-radius: 0 0 4px 4px; }
-.cb { width: 16px; height: 16px; border-radius: 3px; border: 1.5px solid #3A5568; flex-shrink: 0; display: inline-grid; place-items: center; }
+.cb { width: 16px; height: 16px; border-radius: 3px; border: 1.5px solid #3a4150; flex-shrink: 0; display: inline-grid; place-items: center; }
 .cb.on { background: var(--accent); border-color: var(--accent); }
 .cb.on::after { content: "✓"; color: var(--on-solid); font-size: 11px; font-weight: 700; line-height: 1; }
 th.filtered { color: var(--accent); }
@@ -719,10 +720,10 @@ kbd { background: var(--surface-2); }
 .side-item.active { background: var(--hover-2); }
 td.c-title .open { background: var(--surface); }
 td.c-title:has(.cell-input) { background: var(--surface-2) !important; }
-.switch { background: #2A4255; }
+.switch { background: #2a2f3a; }
 .switch::after { background: var(--text); }
 .switch.on { background: var(--accent); }
-.cb.on { background: var(--text); border-color: var(--text); }
+.cb.on { background: var(--accent); border-color: var(--accent); }
 
 /* Interacción acromática: filtros, selección y marcas de arrastre en claro, no en color */
 .tool.on, th.filtered, .popover .chk, .sel-bar .sel-n, .user-btn .check { color: var(--text); }
@@ -759,3 +760,28 @@ h1#page-title[contenteditable="plaintext-only"] { box-shadow: inset 0 -2px 0 var
 /* Las marcas de arrastre van sobre el filete de estado */
 .card.drop-above { box-shadow: 0 -3px 0 var(--text), 0 0 0 1px var(--border) !important; }
 .card.drop-below { box-shadow: 0 3px 0 var(--text), 0 0 0 1px var(--border) !important; }
+
+/* =====================================================================
+   Modo oscuro · armonía visual (rama modo-oscuro-armonia)
+   ===================================================================== */
+/* Tabla: solo líneas horizontales */
+th, td { border-right: none; }
+thead th { border-bottom: 1px solid var(--line-strong); }
+tbody tr:hover td { background: var(--row-hover); }
+
+/* Prioridad: minimalista, fondo transparente y borde fino */
+.pill.p-alta, .pill.p-media, .pill.p-baja { background: transparent; }
+.pill.p-alta  { box-shadow: inset 0 0 0 1px rgba(244, 63, 94, 0.35);  color: #fda4af; }
+.pill.p-media { box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.35); color: #fcd34d; }
+.pill.p-baja  { box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.30); color: #94a3b8; }
+
+/* Radios: 6px en etiquetas, 8px en contenedores y botones */
+.tag, .pill, .fchip { border-radius: var(--radius-control); }
+.modal, .popover, .dialog-box, .confirm-box, .lo-card, .sel-bar, .card, .lane, .toast { border-radius: var(--radius-panel); }
+.btn-new, .btn-cancel, .btn-danger, .tool, .icon-btn, .log-tab, .lo-person, .sel-bar button { border-radius: var(--radius-btn); }
+
+/* Botón principal con acento */
+.btn-new { background: var(--solid); color: var(--on-solid); }
+.btn-new:hover { background: var(--solid-hover); }
+.log-tab.on { background: var(--accent); border-color: var(--accent); color: var(--on-solid); }
+.modal, .dialog-box, .confirm-box, .lo-card { border: 1px solid var(--border); }
